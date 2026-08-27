@@ -1,0 +1,11 @@
+.reference/
+install/
+tools/
+dist/
+src/local-config.json
+*.log
+*.bak
+__pycache__/
+*.py[cod]
+.DS_Store
+Thumbs.db

@@ -1,0 +1,61 @@
+#pdf2zh-companion-window {
+  min-width: 900px;
+  min-height: 600px;
+  background: var(--material-background, Window);
+}
+
+#compare-toolbar {
+  min-height: 42px;
+  padding: 6px 10px;
+  gap: 6px;
+}
+
+#window-heading {
+  font-size: 1.1em;
+  font-weight: 600;
+}
+
+.compare-button,
+.page-button {
+  min-height: 28px;
+  padding-inline: 8px;
+}
+
+#loading-status {
+  font-size: 1.15em;
+  text-align: center;
+  padding: 48px;
+}
+
+.compare-pane {
+  min-width: 320px;
+  background: var(--material-sidepane, #f2f2f2);
+}
+
+.pane-heading {
+  min-height: 36px;
+  padding: 4px 8px;
+  background: var(--material-toolbar, #e8e8e8);
+  border-bottom: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+}
+
+.pane-title {
+  font-weight: 600;
+  margin-inline-end: 8px;
+}
+
+#compare-splitter {
+  min-width: 6px;
+  background: color-mix(in srgb, currentColor 18%, transparent);
+}
+
+browser {
+  background: #f2f2f2;
+}
+
+@media (prefers-color-scheme: dark) {
+  .compare-pane,
+  browser {
+    background: #303030;
+  }
+}

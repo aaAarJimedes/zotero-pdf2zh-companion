@@ -1,0 +1,51 @@
+<?xml version="1.0"?>
+<?xml-stylesheet href="chrome://global/skin/" type="text/css"?>
+<?xml-stylesheet href="chrome://pdf2zhcompanion/content/compare.css" type="text/css"?>
+<window
+  id="pdf2zh-companion-window"
+  title="PDF2zh 左右对照"
+  orient="vertical"
+  persist="screenX screenY width height sizemode"
+  xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
+  <hbox id="compare-toolbar" align="center">
+    <label id="window-heading" value="PDF2zh 原文 / 译文对照"/>
+    <spacer flex="1"/>
+    <toolbarbutton id="sync-prev" class="compare-button" label="◀ 同步上一页"/>
+    <toolbarbutton id="sync-next" class="compare-button" label="同步下一页 ▶"/>
+    <toolbarbutton id="swap-panes" class="compare-button" label="交换左右"/>
+    <toolbarbutton id="open-full-readers" class="compare-button" label="完整阅读器"/>
+  </hbox>
+  <separator class="thin"/>
+  <label id="loading-status" flex="1" value="正在载入原文和译文…"/>
+  <hbox id="compare-panes" flex="1" hidden="true">
+    <vbox id="original-pane" class="compare-pane" flex="1">
+      <hbox class="pane-heading" align="center">
+        <label id="original-title" class="pane-title" flex="1" crop="center"/>
+        <toolbarbutton id="original-prev" class="page-button" label="◀" tooltiptext="原文上一页"/>
+        <toolbarbutton id="original-next" class="page-button" label="▶" tooltiptext="原文下一页"/>
+      </hbox>
+      <browser
+        id="original-browser"
+        type="content"
+        primary="true"
+        transparent="transparent"
+        src="resource://zotero/reader/reader.html"
+        flex="1"/>
+    </vbox>
+    <splitter id="compare-splitter" collapse="none" resizebefore="closest" resizeafter="closest"/>
+    <vbox id="translation-pane" class="compare-pane" flex="1">
+      <hbox class="pane-heading" align="center">
+        <label id="translation-title" class="pane-title" flex="1" crop="center"/>
+        <toolbarbutton id="translation-prev" class="page-button" label="◀" tooltiptext="译文上一页"/>
+        <toolbarbutton id="translation-next" class="page-button" label="▶" tooltiptext="译文下一页"/>
+      </hbox>
+      <browser
+        id="translation-browser"
+        type="content"
+        primary="true"
+        transparent="transparent"
+        src="resource://zotero/reader/reader.html"
+        flex="1"/>
+    </vbox>
+  </hbox>
+</window>
