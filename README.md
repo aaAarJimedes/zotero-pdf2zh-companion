@@ -20,6 +20,8 @@ Windows 10/11、Zotero 9、已配置好的 PDF2zh Server 和 Python/Conda 环境
 
 ## 边界与排错
 
+- Windows 后台任务成功但一直显示“初始化”：安装 [Server 输出流进度补丁](server-fix/README.md)，不需要更换 2.0.0 XPI。
+
 - Server 页面是现有服务的原页面，不增加翻译逻辑，也不修改服务商/API 密钥。
 - 服务未运行且路径缺失时显示具体错误；默认等待 45 秒，可用 `extensions.zotero.pdf2zh.companion.serverWaitMs` 调整。
 - 保留经过原生 Windows 测试的 Conda 路径规范化，避免重复 `Path`/`PATH`。
