@@ -79,7 +79,7 @@ const zoteroMock = {
 };
 const subprocessMock = {
   getEnvironment() {
-    return { PATH: "C:\\Windows\\System32" };
+    return { Path: "C:\\Windows\\System32", SystemRoot: "C:\\Windows", TEMP: "C:\\Temp" };
   },
   async call(options) {
     subprocessOptions = options;
@@ -179,6 +179,10 @@ assert.equal(pairKey({ original, translation: mono }), "1:2");
   );
   assert.equal(subprocessOptions.environment.PYTHONIOENCODING, "utf-8");
   assert.equal(subprocessOptions.environment.PYTHONUTF8, "1");
+  assert.equal(subprocessOptions.environmentAppend, false);
+  assert.deepEqual(Object.keys(subprocessOptions.environment).filter(k => k.toUpperCase() === "PATH"), ["PATH"]);
+  assert.equal(subprocessOptions.environment.SYSTEMROOT, "C:\\Windows");
+  assert.equal(subprocessOptions.environment.TEMP, "C:\\Temp");
   const pathEntries = subprocessOptions.environment.PATH.split(";");
   assert.deepEqual(pathEntries.slice(0, 6), [
     "C:\\PDF2zhTest\\envs\\companion",
@@ -203,7 +207,7 @@ assert.equal(pairKey({ original, translation: mono }), "1:2");
 
   const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
   assert.equal(manifest.applications.zotero.id, "pdf2zh-companion@local");
-  assert.equal(manifest.version, "1.2.3");
+  assert.equal(manifest.version, "1.2.4");
   assert.match(source, new RegExp(`const ADDON_VERSION = "${manifest.version.replaceAll('.', '\\.') }"`));
   const settings = manifest.applications.zotero;
   for (const field of ["id", "update_url", "strict_max_version"]) {

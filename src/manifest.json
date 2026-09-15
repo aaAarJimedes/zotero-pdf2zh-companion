@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "PDF2zh 本地伴侣",
-  "version": "1.2.3",
+  "version": "1.2.4",
   "description": "为 Zotero PDF2zh 自动启动本机 Conda Server，并以两个独立阅读器左右对照原文与译文。",
   "author": "aaAarJimedes",
   "homepage_url": "https://github.com/aaAarJimedes/zotero-pdf2zh-companion",

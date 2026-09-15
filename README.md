@@ -6,7 +6,11 @@
 - 点击一次即可检查并启动本机 PDF2zh Server，然后调用 PDF2zh 翻译当前选择。
 - 将同一 Zotero 条目下的原文 PDF 与译文 PDF 放进左右两个阅读器，便于对照阅读。
 
-当前版本：`1.2.3`。
+当前版本：`1.2.4`。
+
+验证范围与已知限制见 [VERIFICATION.md](VERIFICATION.md)：本机已通过原生启动回归测试，但真实样例翻译被 siliconflowfree 限流及 HTTP 500 阻断，不能据此宣称完整翻译链路成功。
+
+1.2.4 修复 Windows 同时继承 `Path` 和 `PATH` 时仍无法启动翻译命令的问题：规范化环境变量名称，并传入完整环境，禁止再次追加旧环境。新增原生 Windows 进程回归测试，验证旧方式失败、新方式成功。
 
 1.2.3 修复 Conda 环境命令搜索路径遗漏导致的 `WinError 2`。升级后请停止旧 PDF2zh Server 再重启 Zotero，或直接重启电脑，然后使用伴侣翻译按钮启动新服务。仅重启 Zotero 不保证旧 Server 已退出；伴侣会复用仍在运行的服务。
 
@@ -110,10 +114,16 @@ http://127.0.0.1:23119/pdf2zh-companion/status
 
 ```powershell
 node .\tests\smoke.js
+node .\tests\environment.js
+python .\tests\windows-native.py
 .\build.ps1
 ```
 
-构建产物位于 `dist\pdf2zh-companion-1.2.3.xpi`。XPI 本质上是以 `.xpi` 为扩展名的 ZIP，根目录直接包含 `manifest.json`、`bootstrap.js`、`prefs.js` 和 `content`。
+构建产物位于 `dist\pdf2zh-companion-1.2.4.xpi`。XPI 本质上是以 `.xpi` 为扩展名的 ZIP，根目录直接包含 `manifest.json`、`bootstrap.js`、`prefs.js` 和 `content`。
+
+`tests/windows-native.py` 需要 Windows、Node.js 和 Python 3.12+，直接使用 Windows 原始环境块验证，避免 Python/Node 的环境变量自动处理掩盖错误。CI 会运行此测试。
+
+可选的 `tests/integration-local.py --server <Server目录> --output <不存在的测试目录>` 需要 PyMuPDF 和 psutil，并须使用已安装翻译依赖的 Conda Python 执行。它复制服务及配置，以独立端口提交一页自制英文 PDF，调用 siliconflowfree，验证 mono/dual 输出中的中文并生成预览。这会调用外部翻译服务，可能消耗额度，不在 CI 自动执行。测试目录可能包含配置凭据和日志，不要提交或上传；完成后清理。它不覆盖现用服务，不向 Zotero 导入测试条目。
 
 构建还会生成 `dist\updates.json`，其中包括该 XPI 的 SHA-256 校验值。发布时须将 XPI 和此清单一起上传到对应版本的 GitHub Release，并将正式版本标记为 Latest。构建脚本检查必要安装字段及版本一致性；自动测试不替代真实 Zotero 安装、重启验证。
 

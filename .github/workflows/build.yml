@@ -17,9 +17,19 @@ jobs:
           node-version: 22
       - name: Run smoke tests
         run: node .\tests\smoke.js
+      - name: Test environment normalization
+        run: node .\tests\environment.js
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Native Windows regression
+        run: python .\tests\windows-native.py
       - name: Build XPI
         shell: pwsh
         run: .\build.ps1
+      - name: Validate release contents
+        shell: pwsh
+        run: .\tests\release.ps1
       - name: Upload XPI artifact
         uses: actions/upload-artifact@v4
         with:

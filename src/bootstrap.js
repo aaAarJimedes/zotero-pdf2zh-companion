@@ -3,7 +3,7 @@
 "use strict";
 
 const ADDON_ID = "pdf2zh-companion@local";
-const ADDON_VERSION = "1.2.3";
+const ADDON_VERSION = "1.2.4";
 const PREF_PREFIX = "extensions.zotero.pdf2zh.companion.";
 const PDF2ZH_PREF_PREFIX = "extensions.zotero.pdf2zh.";
 const COMPARE_URI = "chrome://pdf2zhcompanion/content/compare.xhtml";
@@ -349,6 +349,38 @@ function serverPort() {
   }
 }
 
+function buildServerEnvironment(python, inherited) {
+  const windows = /python\.exe$/i.test(python);
+  const environment = {};
+  // Mozilla merges JS objects case-sensitively, but Windows reads environment
+  // names case-insensitively. Never pass both inherited Path and new PATH.
+  for (const [key, value] of Object.entries(inherited)) {
+    if (value !== null && value !== undefined) {
+      environment[windows ? key.toUpperCase() : key] = value;
+    }
+  }
+  const condaRootMatch = python.match(/^(.*?)[\\/]envs[\\/][^\\/]+[\\/]python\.exe$/i);
+  if (condaRootMatch) {
+    const root = condaRootMatch[1];
+    const envRoot = python.replace(/[\\/][^\\/]+$/, "");
+    environment.PATH = [
+      envRoot,
+      PathUtils.join(envRoot, "Scripts"),
+      PathUtils.join(envRoot, "Library", "bin"),
+      PathUtils.join(envRoot, "Library", "mingw-w64", "bin"),
+      PathUtils.join(envRoot, "Library", "usr", "bin"),
+      PathUtils.join(envRoot, "bin"),
+      root,
+      PathUtils.join(root, "Scripts"),
+      PathUtils.join(root, "Library", "bin"),
+      environment.PATH || "",
+    ].filter(Boolean).join(";");
+  }
+  environment.PYTHONIOENCODING = "utf-8";
+  environment.PYTHONUTF8 = "1";
+  return environment;
+}
+
 async function ensureServer() {
   const existing = await checkServer();
   if (existing) {
@@ -385,27 +417,7 @@ async function ensureServer() {
   }
 
   const workdir = script.replace(/[\\/][^\\/]+$/, "");
-  const condaRootMatch = python.match(/^(.*?)[\\/]envs[\\/][^\\/]+[\\/]python\.exe$/i);
-  const currentEnvironment = Subprocess.getEnvironment();
-  let processPath = currentEnvironment.PATH || currentEnvironment.Path || "";
-  if (condaRootMatch) {
-    const condaRoot = condaRootMatch[1];
-    const environmentRoot = python.replace(/[\\/][^\\/]+$/, "");
-    // Absolute python.exe does not activate Conda. Server launches the
-    // engine by name, so prefer the selected environment's commands and DLLs.
-    processPath = [
-      environmentRoot,
-      PathUtils.join(environmentRoot, "Scripts"),
-      PathUtils.join(environmentRoot, "Library", "bin"),
-      PathUtils.join(environmentRoot, "Library", "mingw-w64", "bin"),
-      PathUtils.join(environmentRoot, "Library", "usr", "bin"),
-      PathUtils.join(environmentRoot, "bin"),
-      condaRoot,
-      PathUtils.join(condaRoot, "Scripts"),
-      PathUtils.join(condaRoot, "Library", "bin"),
-      processPath,
-    ].filter(Boolean).join(";");
-  }
+  const environment = buildServerEnvironment(python, Subprocess.getEnvironment());
 
   log(`starting server with ${python}`);
   serverProcess = await Subprocess.call({
@@ -419,12 +431,8 @@ async function ensureServer() {
       "--debug", "false",
     ],
     workdir,
-    environmentAppend: true,
-    environment: {
-      PYTHONIOENCODING: "utf-8",
-      PYTHONUTF8: "1",
-      PATH: processPath,
-    },
+    environmentAppend: false,
+    environment,
     stderr: "pipe",
   });
   startedServer = true;
