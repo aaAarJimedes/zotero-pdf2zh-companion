@@ -3,7 +3,7 @@
 "use strict";
 
 const ADDON_ID = "pdf2zh-companion@local";
-const ADDON_VERSION = "1.2.1";
+const ADDON_VERSION = "1.2.2";
 const PREF_PREFIX = "extensions.zotero.pdf2zh.companion.";
 const PDF2ZH_PREF_PREFIX = "extensions.zotero.pdf2zh.";
 const COMPARE_URI = "chrome://pdf2zhcompanion/content/compare.xhtml";

@@ -23,5 +23,7 @@ jobs:
       - name: Upload XPI artifact
         uses: actions/upload-artifact@v4
         with:
-          name: pdf2zh-companion-1.2.1
-          path: dist\pdf2zh-companion-1.2.1.xpi
+          name: pdf2zh-companion-release
+          path: |
+            dist\*.xpi
+            dist\updates.json

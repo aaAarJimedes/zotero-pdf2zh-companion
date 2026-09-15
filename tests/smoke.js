@@ -193,7 +193,13 @@ assert.equal(pairKey({ original, translation: mono }), "1:2");
 
   const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
   assert.equal(manifest.applications.zotero.id, "pdf2zh-companion@local");
-  assert.equal(manifest.version, "1.2.1");
+  assert.equal(manifest.version, "1.2.2");
+  assert.match(source, new RegExp(`const ADDON_VERSION = "${manifest.version.replaceAll('.', '\\.') }"`));
+  const settings = manifest.applications.zotero;
+  for (const field of ["id", "update_url", "strict_max_version"]) {
+    assert.ok(settings[field], `Zotero requires applications.zotero.${field}`);
+  }
+  assert.equal(settings.update_url, "https://github.com/aaAarJimedes/zotero-pdf2zh-companion/releases/latest/download/updates.json");
   assert.equal(manifest.name, "PDF2zh 本地伴侣");
 
   assert.match(source, /\/pdf2zh-companion\/status/);
