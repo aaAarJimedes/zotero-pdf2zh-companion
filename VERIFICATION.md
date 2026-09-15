@@ -1,4 +1,14 @@
-# 1.2.4 verification (2026-09-15)
+# 2.0.0 verification (2026-09-15)
+
+- Passed: mocked single toolbar button, launch deduplication, server reuse, built-in viewer call/reuse, missing paths, startup failure, local URL validation, and unload cleanup.
+- Passed: environment normalization and native Windows CreateProcessW regression retained from 1.2.4.
+- Passed: package source/structure and update hash verification. Removed comparison assets are explicitly rejected by the package test.
+- Real Zotero 9.0.6 check: executed the same `Zotero.openInViewer("http://localhost:8890/")` API used by 2.0.0. The Server page rendered inside a Zotero window and displayed Connected, Server 4.1.7. This did not install the new XPI or execute its toolbar button.
+- New XPI installation, cold-start button activation and restart persistence remain user acceptance checks. No translation was submitted for this minimal release.
+
+The historical 1.x tests below describe removed translation features, not promises of 2.0.
+
+# Historical 1.2.4 verification (2026-09-15)
 
 Environment: Windows, Zotero 9.0.6, PDF2zh Server 4.1.7, Conda Python 3.12.
 

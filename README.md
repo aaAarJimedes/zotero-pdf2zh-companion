@@ -1,158 +1,42 @@
-# Zotero PDF2zh Companion
+# PDF2zh 本地伴侣：单按钮版
 
-一个面向 Zotero 9 的非官方轻量伴侣扩展。它复用
-[zotero-pdf2zh](https://github.com/guaguastandup/zotero-pdf2zh) 的翻译、文件生成和附件导入能力，只补充两个日常入口：
+版本 **2.0.0**。只做一件事：点击 Zotero 工具栏的 **PDF2zh Server** 按钮，按需启动本机 Server，并用 Zotero 自带网页查看器打开 Server 页面。页面在 Zotero 应用内的独立窗口中显示，不是系统浏览器，也不是文献阅读标签页。重复点击会聚焦已有窗口。
 
-- 点击一次即可检查并启动本机 PDF2zh Server，然后调用 PDF2zh 翻译当前选择。
-- 将同一 Zotero 条目下的原文 PDF 与译文 PDF 放进左右两个阅读器，便于对照阅读。
+不需要选择条目。不会提交翻译、上传论文、导入附件、配对 PDF、打开对照阅读器、轮询阅读标签页或增加诊断接口。翻译与附件管理继续使用原版 [Zotero PDF2zh](https://github.com/guaguastandup/zotero-pdf2zh)；Server 页面的操作由 Server 自身提供。**不能保证从 Server 网页上传的 PDF 会自动挂回 Zotero 条目**；需要自动回挂时请使用原版 PDF2zh 的翻译入口。
 
-当前版本：`1.2.4`。
+## 安装与设置
 
-验证范围与已知限制见 [VERIFICATION.md](VERIFICATION.md)：本机已通过原生启动回归测试，但真实样例翻译被 siliconflowfree 限流及 HTTP 500 阻断，不能据此宣称完整翻译链路成功。
+Windows 10/11、Zotero 9、已配置好的 PDF2zh Server 和 Python/Conda 环境。
 
-1.2.4 修复 Windows 同时继承 `Path` 和 `PATH` 时仍无法启动翻译命令的问题：规范化环境变量名称，并传入完整环境，禁止再次追加旧环境。新增原生 Windows 进程回归测试，验证旧方式失败、新方式成功。
+1. 从 [Releases](https://github.com/aaAarJimedes/zotero-pdf2zh-companion/releases/latest) 下载 XPI。
+2. Zotero → 工具 → 插件 → 齿轮 → 从文件安装，选择 XPI，然后重启 Zotero。
+3. 在设置 → 高级 → 配置编辑器设置字符串：
+   - `extensions.zotero.pdf2zh.companion.serverPython`：Conda 环境的 `python.exe` 完整路径。
+   - `extensions.zotero.pdf2zh.companion.serverScript`：Server 的 `server.py` 完整路径。
+4. Server 地址沿用 `extensions.zotero.pdf2zh.new_serverip`，默认 `http://127.0.0.1:8890`，仅接受本机 HTTP 地址。
+5. 点击 **PDF2zh Server** 按钮。服务已运行则直接打开；尚未运行则等待启动后打开。
 
-1.2.3 修复 Conda 环境命令搜索路径遗漏导致的 `WinError 2`。升级后请停止旧 PDF2zh Server 再重启 Zotero，或直接重启电脑，然后使用伴侣翻译按钮启动新服务。仅重启 Zotero 不保证旧 Server 已退出；伴侣会复用仍在运行的服务。
+旧版已配置的 Python/Server 路径会保留。旧的自动对照等首选项不再使用，无需手动清理。若旧服务仍在运行，升级不会替换该进程；需要应用启动环境修复时，先停止旧服务或重启电脑。
 
-1.2.2 修复了 1.2.1 发行包缺少 `update_url`、被正式安装器拒绝的问题。请下载新版，不要继续安装旧包。新版通过 GitHub Release 的 `updates.json` 提供更新信息。
+## 边界与排错
 
-## 功能边界
+- Server 页面是现有服务的原页面，不增加翻译逻辑，也不修改服务商/API 密钥。
+- 服务未运行且路径缺失时显示具体错误；默认等待 45 秒，可用 `extensions.zotero.pdf2zh.companion.serverWaitMs` 调整。
+- 保留经过原生 Windows 测试的 Conda 路径规范化，避免重复 `Path`/`PATH`。
+- 关闭网页或禁用插件不会主动终止 Server，以免打断任务。服务器也可能随系统关闭；需要时再次点击按钮。
+- 打开服务页成功不代表外部翻译供应商可用；限流、HTTP 500 等应由 PDF2zh/翻译服务排查。
+- 卸载不会删除服务、Python 环境、配置或任何文献。
 
-本扩展负责：
-
-- 本地 Server 健康检查与按需启动；
-- 调用 PDF2zh 的 `translatePDF` 入口；
-- 原文/译文附件配对；
-- 手动和自动左右对照阅读；
-- 本地诊断状态页。
-
-PDF 选择、批量任务、翻译引擎、语言、模型、`mono`/`dual` 文件生成、文件命名以及译文挂回原条目，仍由原版 PDF2zh 负责。本扩展不会修改 PDF2zh 的服务商和模型配置。
-
-## 运行要求
-
-- Windows 10/11；
-- Zotero 9；
-- 已安装并启用 Zotero PDF2zh；
-- 已部署可运行的 PDF2zh Server；
-- Server 所需 Python/Conda 环境已经安装依赖。
-
-公开发布包不包含作者机器上的绝对路径。安装后请填写以下两个路径：
-
-```text
-%CONDA_ROOT%\envs\zotero-pdf2zh-next-venv\python.exe
-%PDF2ZH_ROOT%\server\server.py
-```
-
-上面的变量只是路径占位符；首选项中应填写解析后的完整绝对路径，无需重新打包扩展。
-
-## 安装
-
-1. 从 [Releases](https://github.com/aaAarJimedes/zotero-pdf2zh-companion/releases) 下载最新的 `.xpi` 文件。
-2. 在 Zotero 中打开“工具 → 插件”。
-3. 点击右上角齿轮按钮，选择“从文件安装插件”。
-4. 选择下载的 `.xpi`，确认安装并重启 Zotero。
-5. 确认原版 PDF2zh 也已启用。
-
-### 配置 Python 与 Server 路径
-
-在 Zotero 中打开“编辑 → 设置 → 高级 → 配置编辑器”，查找并设置：
-
-| 首选项 | 类型 | 说明 |
-| --- | --- | --- |
-| `extensions.zotero.pdf2zh.companion.serverPython` | 字符串 | Conda 环境中的 `python.exe` 完整路径 |
-| `extensions.zotero.pdf2zh.companion.serverScript` | 字符串 | PDF2zh Server 的 `server.py` 完整路径 |
-| `extensions.zotero.pdf2zh.companion.serverWaitMs` | 整数 | 等待 Server 就绪的超时时间，默认 `45000` 毫秒 |
-| `extensions.zotero.pdf2zh.companion.autoCompareOpenReaders` | 布尔 | 是否自动识别已打开的原文/译文并弹出对照窗口 |
-| `extensions.zotero.pdf2zh.companion.stopServerOnDisable` | 布尔 | 禁用扩展时，是否停止由本扩展启动的 Server |
-
-Server 地址沿用 PDF2zh 的
-`extensions.zotero.pdf2zh.new_serverip`，因此应与 Server 实际监听地址和端口一致。
-
-## 使用
-
-### 一键启动并翻译
-
-1. 在 Zotero 条目列表中选择 PDF 附件，或选择含 PDF 的父条目。
-2. 点击工具栏中的翻译图标。
-3. 扩展先访问 PDF2zh Server 的 `/health`；若服务未运行，则用配置的 Conda Python 启动它。
-4. Server 就绪后，扩展将当前选择交给原版 PDF2zh。后续翻译、生成文件和附件导入均在 PDF2zh 界面中完成。
-
-扩展启动 Server 时会关闭 Server 自己的二次虚拟环境跳转，并启用 UTF-8 输出，以避免 Windows 控制台编码问题。
-
-### 左右对照阅读
-
-有两种打开方式：
-
-- 选择同时包含原文和译文的父条目，然后点击工具栏中的分栏图标；
-- 同时选择同一父条目下的原文、译文两个 PDF，再点击分栏图标。
-
-扩展优先把文件名或标题中包含 `mono`、`dual`、`translated`、`translation`、`pdf2zh`、`译文` 等标识的附件识别为译文。对照窗口支持同步上一页/下一页、单侧翻页、交换左右窗格，以及分别打开完整阅读器。
-
-启用 `autoCompareOpenReaders` 后，如果在 Zotero 中分别打开同一父条目下的原文和译文，扩展会为该附件组合自动打开一次对照窗口。
-
-## 诊断与排错
-
-Zotero 运行时可在浏览器访问：
-
-```text
-http://127.0.0.1:23119/pdf2zh-companion/status
-```
-
-返回的 JSON 会显示扩展版本、PDF2zh 是否可用、Server 地址与健康状态、配置的 Python/脚本路径、阅读器数量和工具栏按钮状态。
-
-常见问题：
-
-- “找不到 Python”或“找不到 Server 脚本”：检查两个路径首选项是否为绝对路径。
-- Server 启动后提前退出：在 Zotero 的“帮助 → 调试输出日志”中查找 `[PDF2zh Server stderr]`。
-- 翻译按钮提示未检测到 PDF2zh：确认原版 PDF2zh 已启用并与当前 Zotero 版本兼容。
-- 没有找到译文：先确认译文已作为 PDF 附件挂在原父条目下；必要时同时选中原文和译文。
-- 端口不一致：检查 PDF2zh 的 `new_serverip` 与 Server 监听端口。
-
-## 从源码构建
-
-要求 PowerShell 5.1+ 和 Node.js 18+：
+## 开发与验证
 
 ```powershell
-node .\tests\smoke.js
-node .\tests\environment.js
-python .\tests\windows-native.py
-.\build.ps1
+node tests/smoke.js
+node tests/environment.js
+python tests/windows-native.py
+./build.ps1
+./tests/release.ps1
 ```
 
-构建产物位于 `dist\pdf2zh-companion-1.2.4.xpi`。XPI 本质上是以 `.xpi` 为扩展名的 ZIP，根目录直接包含 `manifest.json`、`bootstrap.js`、`prefs.js` 和 `content`。
+Windows 原生测试需要 Python 3.12+。构建生成 `dist/pdf2zh-companion-2.0.0.xpi` 与带 SHA-256 的 `dist/updates.json`，两者一起上传 Release。测试涵盖单按钮、点击防重入、启动/复用、内置查看器调用、配置错误与环境变量。真实 Zotero 页面显示仍需要安装后验收，不能以模拟测试代替。
 
-`tests/windows-native.py` 需要 Windows、Node.js 和 Python 3.12+，直接使用 Windows 原始环境块验证，避免 Python/Node 的环境变量自动处理掩盖错误。CI 会运行此测试。
-
-可选的 `tests/integration-local.py --server <Server目录> --output <不存在的测试目录>` 需要 PyMuPDF 和 psutil，并须使用已安装翻译依赖的 Conda Python 执行。它复制服务及配置，以独立端口提交一页自制英文 PDF，调用 siliconflowfree，验证 mono/dual 输出中的中文并生成预览。这会调用外部翻译服务，可能消耗额度，不在 CI 自动执行。测试目录可能包含配置凭据和日志，不要提交或上传；完成后清理。它不覆盖现用服务，不向 Zotero 导入测试条目。
-
-构建还会生成 `dist\updates.json`，其中包括该 XPI 的 SHA-256 校验值。发布时须将 XPI 和此清单一起上传到对应版本的 GitHub Release，并将正式版本标记为 Latest。构建脚本检查必要安装字段及版本一致性；自动测试不替代真实 Zotero 安装、重启验证。
-
-源码检出可以额外创建被 Git 和构建脚本排除的
-`src\local-config.json`，用于保存开发机路径：
-
-```json
-{
-  "serverPython": "<Python 可执行文件的绝对路径>",
-  "serverScript": "<server.py 的绝对路径>"
-}
-```
-
-## 卸载
-
-在 Zotero 的“工具 → 插件”中找到“PDF2zh 本地伴侣”，选择移除并重启 Zotero。卸载不会删除：
-
-- 原版 PDF2zh；
-- Conda 环境或 PDF2zh Server；
-- 已生成或已导入 Zotero 的 PDF；
-- 用户在配置编辑器中设置的首选项。
-
-如需完全清理，可在配置编辑器中重置所有以
-`extensions.zotero.pdf2zh.companion.` 开头的首选项。
-
-## 隐私
-
-伴侣扩展只访问本机 Zotero 与配置的 PDF2zh Server 地址，不额外上传文献。PDF2zh 使用的翻译服务是否会接收 PDF 内容，取决于你在 PDF2zh 中选择的翻译引擎和服务商。
-
-## 许可证
-
-[MIT](LICENSE)
+历史 1.x 的真实翻译测试记录保留在 [VERIFICATION.md](VERIFICATION.md)，不作为 2.0 的翻译功能承诺。MIT 许可证。

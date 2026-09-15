@@ -5,7 +5,7 @@ $xpi = Join-Path $root "dist/pdf2zh-companion-$($manifest.version).xpi"
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 $zip = [IO.Compression.ZipFile]::OpenRead($xpi)
 try {
-    foreach ($name in 'manifest.json','bootstrap.js','prefs.js','content/compare.xhtml','content/compare.css') {
+    foreach ($name in 'manifest.json','bootstrap.js','prefs.js','content/icons/server.svg') {
         $entry = $zip.GetEntry($name)
         if (!$entry) { throw "Missing packaged file: $name" }
         $reader = [IO.StreamReader]::new($entry.Open())
@@ -13,7 +13,7 @@ try {
         $expected = Get-Content (Join-Path $root "src/$name") -Raw
         if ($actual -cne $expected) { throw "Packaged source differs: $name" }
     }
-    if ($zip.Entries.FullName -match 'local-config|\.git|\.log$') { throw 'Unexpected private/development file' }
+    if ($zip.Entries.FullName -match 'local-config|\.git|\.log$|compare|translate') { throw 'Unexpected private/development/removed feature file' }
 } finally { $zip.Dispose() }
 $updates = Get-Content (Join-Path $root 'dist/updates.json') -Raw | ConvertFrom-Json
 $entry = $updates.addons.'pdf2zh-companion@local'.updates[0]
