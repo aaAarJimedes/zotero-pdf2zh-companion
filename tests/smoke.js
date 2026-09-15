@@ -179,7 +179,17 @@ assert.equal(pairKey({ original, translation: mono }), "1:2");
   );
   assert.equal(subprocessOptions.environment.PYTHONIOENCODING, "utf-8");
   assert.equal(subprocessOptions.environment.PYTHONUTF8, "1");
-  assert.match(subprocessOptions.environment.PATH, /^C:\\PDF2zhTest;/);
+  const pathEntries = subprocessOptions.environment.PATH.split(";");
+  assert.deepEqual(pathEntries.slice(0, 6), [
+    "C:\\PDF2zhTest\\envs\\companion",
+    "C:\\PDF2zhTest\\envs\\companion\\Scripts",
+    "C:\\PDF2zhTest\\envs\\companion\\Library\\bin",
+    "C:\\PDF2zhTest\\envs\\companion\\Library\\mingw-w64\\bin",
+    "C:\\PDF2zhTest\\envs\\companion\\Library\\usr\\bin",
+    "C:\\PDF2zhTest\\envs\\companion\\bin",
+  ]);
+  assert.ok(pathEntries.indexOf("C:\\PDF2zhTest\\Scripts") > 1);
+  assert.equal(pathEntries.at(-1), "C:\\Windows\\System32");
 
   const selectedItem = { id: 99 };
   await translateSelected({
@@ -193,7 +203,7 @@ assert.equal(pairKey({ original, translation: mono }), "1:2");
 
   const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
   assert.equal(manifest.applications.zotero.id, "pdf2zh-companion@local");
-  assert.equal(manifest.version, "1.2.2");
+  assert.equal(manifest.version, "1.2.3");
   assert.match(source, new RegExp(`const ADDON_VERSION = "${manifest.version.replaceAll('.', '\\.') }"`));
   const settings = manifest.applications.zotero;
   for (const field of ["id", "update_url", "strict_max_version"]) {

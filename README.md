@@ -6,7 +6,9 @@
 - 点击一次即可检查并启动本机 PDF2zh Server，然后调用 PDF2zh 翻译当前选择。
 - 将同一 Zotero 条目下的原文 PDF 与译文 PDF 放进左右两个阅读器，便于对照阅读。
 
-当前版本：`1.2.2`。
+当前版本：`1.2.3`。
+
+1.2.3 修复 Conda 环境命令搜索路径遗漏导致的 `WinError 2`。升级后请停止旧 PDF2zh Server 再重启 Zotero，或直接重启电脑，然后使用伴侣翻译按钮启动新服务。仅重启 Zotero 不保证旧 Server 已退出；伴侣会复用仍在运行的服务。
 
 1.2.2 修复了 1.2.1 发行包缺少 `update_url`、被正式安装器拒绝的问题。请下载新版，不要继续安装旧包。新版通过 GitHub Release 的 `updates.json` 提供更新信息。
 
@@ -111,7 +113,7 @@ node .\tests\smoke.js
 .\build.ps1
 ```
 
-构建产物位于 `dist\pdf2zh-companion-1.2.2.xpi`。XPI 本质上是以 `.xpi` 为扩展名的 ZIP，根目录直接包含 `manifest.json`、`bootstrap.js`、`prefs.js` 和 `content`。
+构建产物位于 `dist\pdf2zh-companion-1.2.3.xpi`。XPI 本质上是以 `.xpi` 为扩展名的 ZIP，根目录直接包含 `manifest.json`、`bootstrap.js`、`prefs.js` 和 `content`。
 
 构建还会生成 `dist\updates.json`，其中包括该 XPI 的 SHA-256 校验值。发布时须将 XPI 和此清单一起上传到对应版本的 GitHub Release，并将正式版本标记为 Latest。构建脚本检查必要安装字段及版本一致性；自动测试不替代真实 Zotero 安装、重启验证。
 

@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.3 - 2026-09-15
+
+- 修复 Conda Server 启动时遗漏所选环境的 Scripts 路径，导致翻译报 WinError 2。
+- 优先使用所选环境的命令及 DLL 目录，保留 base Conda 和原有 PATH。
+- 增加环境路径优先级回归测试；升级后须重启旧 Server 才能生效。
+
 ## 1.2.2 - 2026-09-15
 
 - 修复安装清单缺少 `applications.zotero.update_url` 导致正式安装被拒绝。

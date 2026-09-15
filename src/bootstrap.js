@@ -3,7 +3,7 @@
 "use strict";
 
 const ADDON_ID = "pdf2zh-companion@local";
-const ADDON_VERSION = "1.2.2";
+const ADDON_VERSION = "1.2.3";
 const PREF_PREFIX = "extensions.zotero.pdf2zh.companion.";
 const PDF2ZH_PREF_PREFIX = "extensions.zotero.pdf2zh.";
 const COMPARE_URI = "chrome://pdf2zhcompanion/content/compare.xhtml";
@@ -390,7 +390,16 @@ async function ensureServer() {
   let processPath = currentEnvironment.PATH || currentEnvironment.Path || "";
   if (condaRootMatch) {
     const condaRoot = condaRootMatch[1];
+    const environmentRoot = python.replace(/[\\/][^\\/]+$/, "");
+    // Absolute python.exe does not activate Conda. Server launches the
+    // engine by name, so prefer the selected environment's commands and DLLs.
     processPath = [
+      environmentRoot,
+      PathUtils.join(environmentRoot, "Scripts"),
+      PathUtils.join(environmentRoot, "Library", "bin"),
+      PathUtils.join(environmentRoot, "Library", "mingw-w64", "bin"),
+      PathUtils.join(environmentRoot, "Library", "usr", "bin"),
+      PathUtils.join(environmentRoot, "bin"),
       condaRoot,
       PathUtils.join(condaRoot, "Scripts"),
       PathUtils.join(condaRoot, "Library", "bin"),
