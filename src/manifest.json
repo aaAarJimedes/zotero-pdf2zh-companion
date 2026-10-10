@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "PDF2zh 本地伴侣",
-  "version": "2.0.0",
+  "version": "2.0.2",
   "description": "一个按钮：启动本地 PDF2zh Server，并在 Zotero 内打开服务页面。翻译由 PDF2zh 接管。",
   "author": "aaAarJimedes",
   "homepage_url": "https://github.com/aaAarJimedes/zotero-pdf2zh-companion",

@@ -21,6 +21,10 @@ if (Test-Path -LiteralPath $buildDir) {
         ((Get-Item -LiteralPath $resolved).Attributes -band [IO.FileAttributes]::ReparsePoint)) {
         throw "Unsafe build directory"
     }
+    if (Get-ChildItem -LiteralPath $resolved -Force -Recurse |
+        Where-Object { $_.Attributes -band [IO.FileAttributes]::ReparsePoint }) {
+        throw "Linked build content; no cleanup performed"
+    }
     Remove-Item -Recurse -Force -LiteralPath $buildDir
 }
 New-Item -ItemType Directory -Path $buildDir | Out-Null

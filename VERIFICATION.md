@@ -1,3 +1,16 @@
+# 2.0.2 verification (2026-10-10)
+
+- Passed: clear/cancel dialog handlers, duplicate clicks, refresh persistence, stale in-flight server responses, completions after clearing, cross-window storage events, malformed history and guarded/idempotent page installation.
+- Passed: single-button lifecycle, server reuse, no translation submission, native Python prefix probing, and environment normalization.
+- Passed: actual official Python environment probe and six native path cases, including Chinese/space/custom-prefix paths; actual pdf2zh_next --help.
+- Passed: native Windows CreateProcessW negative/positive regression and retained headless pipe/Rich progress tests.
+- Passed: XPI source equality, required files, version, update link and SHA-256.
+- Local existing Server's static page was repaired without restarting its active translation. No paper, credentials, preferences or runtime task records were changed.
+- Real Zotero UI click/reload verification was interrupted by the Computer Use Escape stop state, even after the user allowed continuation; it is not claimed passed. Current viewer must refresh to load the updated page. New companion code requires plugin reload/restart after XPI replacement.
+- Private GitHub assets are checked with authenticated local gh downloads. Anonymous Zotero automatic update is not guaranteed by a private repository.
+
+Historical verification below retains its original version-specific scope.
+
 # 2.0.0 verification (2026-09-15)
 
 - Passed: mocked single toolbar button, launch deduplication, server reuse, built-in viewer call/reuse, missing paths, startup failure, local URL validation, and unload cleanup.

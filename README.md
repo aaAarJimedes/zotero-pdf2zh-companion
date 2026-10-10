@@ -1,44 +1,36 @@
-# PDF2zh 本地伴侣：单按钮版
+# PDF2zh 本地伴侣
 
-版本 **2.0.0**。只做一件事：点击 Zotero 工具栏的 **PDF2zh Server** 按钮，按需启动本机 Server，并用 Zotero 自带网页查看器打开 Server 页面。页面在 Zotero 应用内的独立窗口中显示，不是系统浏览器，也不是文献阅读标签页。重复点击会聚焦已有窗口。
+当前版本 **2.0.2**。在 Zotero 工具栏提供一个 Server 按钮，启动或复用本机服务，再用 Zotero 内置查看器打开服务页面。翻译与附件导入仍由 PDF2zh 主插件处理。
 
-不需要选择条目。不会提交翻译、上传论文、导入附件、配对 PDF、打开对照阅读器、轮询阅读标签页或增加诊断接口。翻译与附件管理继续使用原版 [Zotero PDF2zh](https://github.com/guaguastandup/zotero-pdf2zh)；Server 页面的操作由 Server 自身提供。**不能保证从 Server 网页上传的 PDF 会自动挂回 Zotero 条目**；需要自动回挂时请使用原版 PDF2zh 的翻译入口。
+## 翻译历史清空修复
 
-## 安装与设置
+旧页面只删除浏览器缓存，刷新又将 Server 的历史合并回来。新版保存本机页面的清空时间，并在历史合并时过滤旧记录；清空之后完成的任务正常保留，包括清空时仍在翻译的任务。确认操作改为页面内对话框，避免内置查看器不显示原生 confirm 的情况。取消不会删除记录。
 
-Windows 10/11、Zotero 9、已配置好的 PDF2zh Server 和 Python/Conda 环境。
+清空仅作用于当前服务地址的本机页面历史列表，不删除原文/译文、不停止任务，也不清空 Server 内存或其他浏览器的存储。更换服务地址会使用另一个页面存储。
 
-1. 从 [Releases](https://github.com/aaAarJimedes/zotero-pdf2zh-companion/releases/latest) 下载 XPI。
-2. Zotero → 工具 → 插件 → 齿轮 → 从文件安装，选择 XPI，然后重启 Zotero。
-3. 在设置 → 高级 → 配置编辑器设置字符串：
-   - `extensions.zotero.pdf2zh.companion.serverPython`：Conda 环境的 `python.exe` 完整路径。
-   - `extensions.zotero.pdf2zh.companion.serverScript`：Server 的 `server.py` 完整路径。
-4. Server 地址沿用 `extensions.zotero.pdf2zh.new_serverip`，默认 `http://127.0.0.1:8890`，仅接受本机 HTTP 地址。
-5. 点击 **PDF2zh Server** 按钮。服务已运行则直接打开；尚未运行则等待启动后打开。
+插件打开服务页面前会对所配置 Server 目录中的 `index.html` 应用相同修复。只处理已知历史模块；不匹配的页面拒绝覆盖，已修复页面重复打开不会重写。更新页面不需要重启 Server，已有页面刷新后生效。
 
-旧版已配置的 Python/Server 路径会保留。旧的自动对照等首选项不再使用，无需手动清理。若旧服务仍在运行，升级不会替换该进程；需要应用启动环境修复时，先停止旧服务或重启电脑。
-
-## 边界与排错
-
-- Windows 后台任务成功但一直显示“初始化”：安装 [Server 输出流进度补丁](server-fix/README.md)，不需要更换 2.0.0 XPI。
-
-- Server 页面是现有服务的原页面，不增加翻译逻辑，也不修改服务商/API 密钥。
-- 服务未运行且路径缺失时显示具体错误；默认等待 45 秒，可用 `extensions.zotero.pdf2zh.companion.serverWaitMs` 调整。
-- 保留经过原生 Windows 测试的 Conda 路径规范化，避免重复 `Path`/`PATH`。
-- 关闭网页或禁用插件不会主动终止 Server，以免打断任务。服务器也可能随系统关闭；需要时再次点击按钮。
-- 打开服务页成功不代表外部翻译供应商可用；限流、HTTP 500 等应由 PDF2zh/翻译服务排查。
-- 卸载不会删除服务、Python 环境、配置或任何文献。
-
-## 开发与验证
+已安装旧子插件而希望只修复页面，可在仓库目录运行：
 
 ```powershell
-node tests/smoke.js
-node tests/environment.js
-python tests/windows-native.py
-./build.ps1
-./tests/release.ps1
+node .\server-fix\install-history.cjs 'D:\softwares\zotero-pdf2zh\server'
 ```
 
-Windows 原生测试需要 Python 3.12+。构建生成 `dist/pdf2zh-companion-2.0.0.xpi` 与带 SHA-256 的 `dist/updates.json`，两者一起上传 Release。测试涵盖单按钮、点击防重入、启动/复用、内置查看器调用、配置错误与环境变量。真实 Zotero 页面显示仍需要安装后验收，不能以模拟测试代替。
+## 安装与构建
 
-历史 1.x 的真实翻译测试记录保留在 [VERIFICATION.md](VERIFICATION.md)，不作为 2.0 的翻译功能承诺。MIT 许可证。
+从当前发布楼下载 `pdf2zh-companion-2.0.2.xpi`，通过 Zotero 插件管理器安装。首次配置继续使用主插件的回环服务地址，以及 `extensions.zotero.pdf2zh.companion.serverPython` / `serverScript`。不要在源码填写本机路径、密钥或用户偏好。
+
+```powershell
+node .\tests\smoke.js
+node .\tests\environment.js
+node .\tests\history.js
+python .\tests\windows-native.py
+.\build.ps1
+.\tests\release.ps1
+```
+
+构建输出在 `dist/`：XPI 与包含版本、下载地址和 SHA-256 的 `updates.json`。CI 只测试和生成构建产物，不并发修改发布楼。仓库保持私有；GitHub 下载和更新清单需要有权限的认证，不能保证 Zotero 的匿名自动更新。手动安装 XPI 不依赖匿名更新。
+
+唯一主源码在 `src/`。`tests/local-runtime.cjs` 为维护电脑的实际官方 Python 路径回归，不提交翻译、不调用模型；其他机器应使用通用测试或配置自己的环境。原生后台进度修复见 `server-fix/README.md`，更新历史页面无需重新安装该执行器补丁。
+
+本版同时保留此前本机 2.0.1 的环境修复：读取所选 Python 的真实 `sys.prefix` / `sys.base_prefix`，支持官方 venv 与标准/自定义 Conda，并合并 Windows 的 Path/PATH。验证结果及尚未验证的真实界面范围见 `VERIFICATION.md`。

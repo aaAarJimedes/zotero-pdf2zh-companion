@@ -24,7 +24,8 @@ if (process.argv[2] === '--emit') {
   assert.equal(Object.keys(duplicated).filter(k => k.toUpperCase() === 'PATH').length, 1);
   assert.equal(duplicated.PYTHONUTF8, '1');
   assert.ok(duplicated.PATH.endsWith('new'));
-  assert.equal(context.build('C:\\Python\\python.exe', {Path:'old'}).PATH, 'old');
+  assert.ok(context.build('C:\\Python\\python.exe', {Path:'old'}).PATH.includes('C:\\Python\\Scripts'));
+  assert.ok(context.build('C:\\Python\\python.exe', {Path:'old'}).PATH.endsWith('old'));
   assert.equal(context.build('/usr/bin/python', {Path:'case-sensitive',PATH:'unix'}).Path, 'case-sensitive');
   console.log('environment casing, duplicates, inheritance and spaces tests passed');
 }

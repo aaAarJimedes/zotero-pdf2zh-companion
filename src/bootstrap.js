@@ -1,16 +1,19 @@
 /* global Zotero, Services, IOUtils, PathUtils, ChromeUtils */
 "use strict";
-const VERSION = "2.0.0";
+const VERSION = "2.0.2";
 const PREFIX = "extensions.zotero.pdf2zh.companion.";
 const { Subprocess } = ChromeUtils.importESModule("resource://gre/modules/Subprocess.sys.mjs");
 const buttons = new Map();
 let iconURI, process = null, opening = null, viewer = null, viewerURL = null;
 let stopped = false;
+const historyPatch = {};
 function install() {}
 function uninstall() {}
 async function startup({ rootURI, resourceURI }) {
   await Zotero.initializationPromise;
-  iconURI = (rootURI || resourceURI.spec) + "content/icons/server.svg";
+  const packageURI = rootURI || resourceURI.spec;
+  iconURI = packageURI + "content/icons/server.svg";
+  Services.scriptloader.loadSubScript(packageURI + "history-patch.js", historyPatch);
   await Zotero.uiReadyPromise;
   Zotero.PDF2ZHCompanion = { version: VERSION, openServer };
   for (const win of Zotero.getMainWindows()) attach(win);
@@ -60,25 +63,59 @@ function detach(win) {
   entry.button.remove();
   buttons.delete(win);
 }
-function buildServerEnvironment(python, inherited) {
+function buildServerEnvironment(python, inherited, runtime = {}) {
   const windows = /python\.exe$/i.test(python);
   const environment = {};
+  const inheritedPaths = [];
   // Normalize before passing a complete environment; never append old Path.
   for (const [key, value] of Object.entries(inherited)) {
-    if (value !== null && value !== undefined) environment[windows ? key.toUpperCase() : key] = value;
+    if (value === null || value === undefined) continue;
+    const normalized = windows ? key.toUpperCase() : key;
+    if (normalized === "PATH") inheritedPaths.push(String(value));
+    else environment[normalized] = value;
   }
-  const match = python.match(/^(.*?)[\\/]envs[\\/][^\\/]+[\\/]python\.exe$/i);
-  if (match) {
-    const root = match[1], envRoot = python.replace(/[\\/][^\\/]+$/, "");
-    environment.PATH = [envRoot, PathUtils.join(envRoot, "Scripts"),
-      PathUtils.join(envRoot, "Library", "bin"), PathUtils.join(envRoot, "Library", "mingw-w64", "bin"),
-      PathUtils.join(envRoot, "Library", "usr", "bin"), PathUtils.join(envRoot, "bin"), root,
-      PathUtils.join(root, "Scripts"), PathUtils.join(root, "Library", "bin"), environment.PATH || "",
-    ].filter(Boolean).join(";");
+  const pythonDir = python.replace(/[\\/][^\\/]+$/, "");
+  const roots = [runtime.prefix || pythonDir, runtime.base_prefix].filter(Boolean);
+  const separator = windows ? ";" : ":";
+  const entries = [];
+  for (const root of roots) {
+    entries.push(root, PathUtils.join(root, windows ? "Scripts" : "bin"));
+    if (windows) entries.push(PathUtils.join(root, "Library", "bin"),
+      PathUtils.join(root, "Library", "mingw-w64", "bin"), PathUtils.join(root, "Library", "usr", "bin"));
   }
+  entries.push(pythonDir, ...inheritedPaths.flatMap(value => value.split(separator)));
+  const seen = new Set();
+  environment.PATH = entries.filter(entry => {
+    if (!entry) return false;
+    const key = windows ? entry.replace(/[\\/]+$/, "").toLowerCase() : entry;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).join(separator);
   environment.PYTHONIOENCODING = "utf-8";
   environment.PYTHONUTF8 = "1";
   return environment;
+}
+async function probeServerRuntime(python, inherited) {
+  const probe = await Subprocess.call({
+    command: python,
+    arguments: ["-c", "import sys,json; print(json.dumps({'prefix':sys.prefix,'base_prefix':sys.base_prefix}))"],
+    environmentAppend: false,
+    environment: buildServerEnvironment(python, inherited), stderr: "pipe",
+  });
+  async function read(stream) {
+    let result = "", chunk;
+    while (stream && (chunk = await stream.readString())) result += chunk;
+    return result;
+  }
+  const [result, output, error] = await Promise.all([probe.wait(), read(probe.stdout), read(probe.stderr)]);
+  if (result.exitCode !== 0) throw new Error("无法检查所选 Python 环境：" + error.trim());
+  const runtime = JSON.parse(output.trim());
+  if (typeof runtime.prefix !== "string" || !runtime.prefix
+      || typeof runtime.base_prefix !== "string" || !runtime.base_prefix) {
+    throw new Error("所选 Python 未返回有效环境路径。");
+  }
+  return runtime;
 }
 async function healthy(url) {
   try {
@@ -107,6 +144,8 @@ async function ensureServer(url) {
     if (!(await IOUtils.exists(python))) throw new Error("找不到 Python：" + python);
     if (!(await IOUtils.exists(script))) throw new Error("找不到 Server 脚本：" + script);
     const parsed = new URL(url);
+    const inherited = Subprocess.getEnvironment();
+    const runtime = await probeServerRuntime(python, inherited);
     const launched = await Subprocess.call({
       command: python,
       arguments: [script, "--host", parsed.hostname === "[::1]" ? "::1" : "127.0.0.1",
@@ -114,7 +153,7 @@ async function ensureServer(url) {
         "--check_update", "false", "--skip_install", "true", "--debug", "false"],
       workdir: script.replace(/[\\/][^\\/]+$/, ""),
       environmentAppend: false,
-      environment: buildServerEnvironment(python, Subprocess.getEnvironment()), stderr: "pipe",
+      environment: buildServerEnvironment(python, inherited, runtime), stderr: "pipe",
     });
     process = launched;
     drain(launched.stdout); drain(launched.stderr);
@@ -129,6 +168,19 @@ async function ensureServer(url) {
   }
   throw new Error("Server 未在等待时间内就绪，请检查 Python 环境与服务日志。");
 }
+async function updateServerHistoryPage() {
+  const script = String(pref("serverScript", "")).trim();
+  if (!script) return;
+  const index = PathUtils.join(script.replace(/[\\\\/][^\\\\/]+$/, ""), "index.html");
+  if (!(await IOUtils.exists(index))) return;
+  const original = await IOUtils.readUTF8(index);
+  const patched = historyPatch.patchHistoryPage(original);
+  if (patched === original) return;
+  if (await IOUtils.readUTF8(index) !== original) {
+    throw new Error("历史页面正在被其他程序修改，请稍后重试。");
+  }
+  await IOUtils.writeUTF8(index, patched, {tmpPath: index + ".companion-history.tmp"});
+}
 function openServer() {
   if (opening) return opening;
   if (stopped) return Promise.reject(new Error("插件已停用。"));
@@ -136,6 +188,12 @@ function openServer() {
   opening = (async () => {
     const url = getServerURL();
     await ensureServer(url);
+    try {
+      await updateServerHistoryPage();
+    } catch (error) {
+      Zotero.logError(error);
+      Services.prompt.alert(null, "PDF2zh 翻译历史", "历史列表修复暂时无法应用，服务页面仍可使用。\n" + (error.message || String(error)));
+    }
     if (stopped) return;
     if (viewer && !viewer.closed && viewerURL === url) { viewer.focus(); return; }
     viewer = Zotero.openInViewer(url + "/");

@@ -19,6 +19,8 @@ jobs:
         run: node .\tests\smoke.js
       - name: Test environment normalization
         run: node .\tests\environment.js
+      - name: Test history clearing and page repair
+        run: node .\tests\history.js
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
