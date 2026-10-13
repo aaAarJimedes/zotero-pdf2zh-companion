@@ -29,9 +29,15 @@ if (Test-Path -LiteralPath $buildDir) {
 }
 New-Item -ItemType Directory -Path $buildDir | Out-Null
 
-$sourceItems = Get-ChildItem -Force -LiteralPath $sourceDir |
-    Where-Object { $_.Name -ne "local-config.json" }
-Compress-Archive -LiteralPath $sourceItems.FullName -DestinationPath $zipPath -CompressionLevel Optimal
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+$archive = [IO.Compression.ZipFile]::Open($zipPath, [IO.Compression.ZipArchiveMode]::Create)
+try {
+    foreach ($file in Get-ChildItem -File -Recurse -Force -LiteralPath $sourceDir) {
+        $relative = $file.FullName.Substring($sourceDir.Length + 1).Replace('\', '/')
+        if ($relative -match '(^|/)__pycache__/|\.py[co]$|(^|/)local-config\.json$') { continue }
+        [IO.Compression.ZipFileExtensions]::CreateEntryFromFile($archive, $file.FullName, $relative, [IO.Compression.CompressionLevel]::Optimal) | Out-Null
+    }
+} finally { $archive.Dispose() }
 Move-Item -LiteralPath $zipPath -Destination $xpiPath
 
 $hash = (Get-FileHash -LiteralPath $xpiPath -Algorithm SHA256).Hash.ToLowerInvariant()

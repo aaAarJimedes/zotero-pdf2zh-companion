@@ -26,6 +26,10 @@ jobs:
           python-version: '3.12'
       - name: Native Windows regression
         run: python .\tests\windows-native.py
+      - name: Quality checks without model or document data
+        run: |
+          python .\tests\quality_guard.py --offline
+          python .\tests\quality_hook.py
       - name: Build XPI
         shell: pwsh
         run: .\build.ps1

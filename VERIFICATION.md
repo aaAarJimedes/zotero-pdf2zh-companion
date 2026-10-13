@@ -1,3 +1,18 @@
+# 2.1.0 verification (2026-10-13)
+
+- Passed: reply/cache validation for paragraphs, glossary and numbered batches; native method hooks and reversible restoration; known Server command interception, correct interpreter selection, idempotent installation and per-task enable/disable behavior.
+- Passed: five output arrangements (mono, LR and alternating pages, including translation-first), source geometry, contents page numbers/links, references and footer preservation on synthetic PDFs.
+- Passed: the pinned native engine with automatic terms enabled against a local synthetic OpenAI-compatible responder. It produced mono/LR outputs, retried an intentionally invalid first reply, and reconstructed ten contents entries; no user paper or real model endpoint was submitted by this regression.
+- Font regression: source-region redactions now precede final contents text insertion, and titles, numbers and leaders share the embedded CJK font. Recursive page/Form resource inspection rejects a deliberately missing-font fixture; corrected native outputs have zero missing-font references. Poppler no longer reports Unknown font tag / No font in show-space warnings. Its optional display-font substitution messages also occur on the unchanged baseline and are not a PDF resource regression.
+- The retained 60-page comparison trial was inspected without modification and has no missing-font references. It is the earlier real-paper test, not a fresh full-paper test of this release.
+- Actual Zotero 10.0.3 UI: package loaded without an enhancement-resource alert; the default-on menu and saved off state were visible. The Server viewer connected, showed zero active tasks, displayed existing history, opened the page-local clear confirmation, and cancellation retained that history. No real history was deleted.
+- Final menu correction verified in the actual UI: toggling off/on changes the deployed per-task settings without opening a Server viewer. The popup is outside the toolbar button, and the final state is enabled. Package extraction and deployed engine/core hashes match the built source.
+- Three unsupported native options (selected pages, only translated pages and split parts) fail before any model request or output mutation with an actionable message. The native default full-document settings still pass the engine regression.
+- Translation attachment handoff is retained through native output filenames. This release's native-engine regression does not claim a new Zotero translation/automatic-attachment UI run, complete semantic acceptance, full-page reflow or complex OCR coverage.
+- Private authenticated GitHub downloads are the release verification path; anonymous Zotero automatic updates are not guaranteed.
+
+Historical verification below retains its original version-specific scope.
+
 # 2.0.2 verification (2026-10-10)
 
 - Passed: clear/cancel dialog handlers, duplicate clicks, refresh persistence, stale in-flight server responses, completions after clearing, cross-window storage events, malformed history and guarded/idempotent page installation.

@@ -1,22 +1,27 @@
 /* global Zotero, Services, IOUtils, PathUtils, ChromeUtils */
 "use strict";
-const VERSION = "2.0.2";
+const VERSION = "2.1.0";
 const PREFIX = "extensions.zotero.pdf2zh.companion.";
 const { Subprocess } = ChromeUtils.importESModule("resource://gre/modules/Subprocess.sys.mjs");
 const buttons = new Map();
-let iconURI, process = null, opening = null, viewer = null, viewerURL = null;
+let iconURI, packageURI, process = null, opening = null, viewer = null, viewerURL = null;
+let qualityInstalling = null;
 let stopped = false;
 const historyPatch = {};
 function install() {}
 function uninstall() {}
 async function startup({ rootURI, resourceURI }) {
   await Zotero.initializationPromise;
-  const packageURI = rootURI || resourceURI.spec;
+  packageURI = rootURI || resourceURI.spec;
   iconURI = packageURI + "content/icons/server.svg";
   Services.scriptloader.loadSubScript(packageURI + "history-patch.js", historyPatch);
   await Zotero.uiReadyPromise;
-  Zotero.PDF2ZHCompanion = { version: VERSION, openServer };
+  Zotero.PDF2ZHCompanion = { version: VERSION, openServer, setQualityEnabled, get qualityEnabled() { return pref("qualityEnabled", true); } };
   for (const win of Zotero.getMainWindows()) attach(win);
+  try { await updateQualityRuntime(); } catch (error) {
+    Zotero.logError(error);
+    Services.prompt.alert(null, "PDF2zh 排版增强未应用", error.message || String(error));
+  }
 }
 function onMainWindowLoad({ window }) { attach(window); }
 function onMainWindowUnload({ window }) { detach(window); }
@@ -26,7 +31,7 @@ function shutdown() {
   delete Zotero.PDF2ZHCompanion;
   // Do not interrupt PDF2zh jobs by killing its independently usable Server.
 }
-function pref(name, fallback) { return Zotero.Prefs.get(PREFIX + name, true) || fallback; }
+function pref(name, fallback) { const value = Zotero.Prefs.get(PREFIX + name, true); return value === undefined || value === null || value === "" ? fallback : value; }
 function getServerURL() {
   const raw = Zotero.Prefs.get("extensions.zotero.pdf2zh.new_serverip", true) || "http://127.0.0.1:8890";
   const url = new URL(String(raw).trim());
@@ -42,10 +47,11 @@ function attach(win) {
   const toolbar = doc.getElementById("zotero-items-toolbar") || doc.getElementById("zotero-toolbar-item-tree");
   if (!toolbar) return;
   const button = doc.createXULElement("toolbarbutton");
+  const popups = new Set();
   button.id = "pdf2zh-companion-server-button";
   button.classList.add("zotero-tb-button");
   button.setAttribute("label", "PDF2zh Server");
-  button.setAttribute("tooltiptext", "启动本地 PDF2zh Server，并在 Zotero 内打开服务页面");
+  button.setAttribute("tooltiptext", "打开 PDF2zh Server；右键切换默认开启的译文与排版增强");
   button.style.listStyleImage = `url(${iconURI})`;
   button.disabled = Boolean(opening);
   const listener = () => openServer().catch(error => {
@@ -53,13 +59,34 @@ function attach(win) {
     if (!stopped) Services.prompt.alert(win, "PDF2zh Server", error.message || String(error));
   });
   button.addEventListener("command", listener);
+  const contextListener = event => {
+    event.preventDefault();
+    const popup = doc.createXULElement("menupopup");
+    const item = doc.createXULElement("menuitem");
+    item.setAttribute("type", "checkbox");
+    item.setAttribute("label", "译文与排版增强（仅影响后续任务）");
+    item.setAttribute("checked", String(Boolean(pref("qualityEnabled", true))));
+    item.addEventListener("command", event => {
+      event.stopPropagation(); // The parent toolbar button opens the Server.
+      return setQualityEnabled(!pref("qualityEnabled", true)).catch(error => {
+        Zotero.logError(error); Services.prompt.alert(win, "PDF2zh 排版增强", error.message);
+      });
+    });
+    popup.appendChild(item);doc.documentElement.appendChild(popup);popups.add(popup);
+    popup.addEventListener("popuphidden", () => { popups.delete(popup);popup.remove(); }, {once:true});
+    popup.openPopupAtScreen(event.screenX, event.screenY, true);
+  };
+  button.addEventListener("contextmenu", contextListener);
   toolbar.appendChild(button);
-  buttons.set(win, { button, listener });
+  buttons.set(win, { button, listener, contextListener, popups });
 }
 function detach(win) {
   const entry = buttons.get(win);
   if (!entry) return;
   entry.button.removeEventListener("command", entry.listener);
+  entry.button.removeEventListener("contextmenu", entry.contextListener);
+  for (const popup of entry.popups) popup.remove();
+  entry.popups.clear();
   entry.button.remove();
   buttons.delete(win);
 }
@@ -135,6 +162,7 @@ async function drain(stream) {
   } catch (_) { /* Process closed its pipe. */ }
 }
 async function ensureServer(url) {
+  await updateQualityRuntime();
   if (await healthy(url)) return;
   if (stopped) throw new Error("插件已停用。");
   if (!process || process.exitCode !== null) {
@@ -167,6 +195,57 @@ async function ensureServer(url) {
     await Zotero.Promise.delay(500);
   }
   throw new Error("Server 未在等待时间内就绪，请检查 Python 环境与服务日志。");
+}
+async function updateQualityRuntime() {
+  if (qualityInstalling) return qualityInstalling;
+  const python = String(pref("serverPython", "")).trim();
+  const script = String(pref("serverScript", "")).trim();
+  if (!packageURI || !python || !script) return;
+  qualityInstalling = (async () => {
+    const server = script.replace(/[\\/][^\\/]+$/, "");
+    const stage = PathUtils.join(server, "companion-quality-package");
+    await IOUtils.makeDirectory(stage, {ignoreExisting:true});
+    for (const name of ["install_quality.py", "companion_quality.py", "quality_engine.py", "quality_guard.py"]) {
+      const text = await readPackagedText("quality/" + name);
+      const dest = PathUtils.join(stage, name);
+      await IOUtils.writeUTF8(dest, text, {tmpPath:dest + ".tmp"});
+    }
+    const inherited = Subprocess.getEnvironment();
+    const runtime = await probeServerRuntime(python, inherited);
+    const installer = await Subprocess.call({command:python,
+      arguments:[PathUtils.join(stage, "install_quality.py"), server, String(Boolean(pref("qualityEnabled", true)))],
+      environmentAppend:false, environment:buildServerEnvironment(python, inherited, runtime), stderr:"pipe"});
+    let output = "", errors = "";
+    async function read(stream) { let text = "", chunk;while (stream && (chunk = await stream.readString())) text += chunk;return text; }
+    const [result, stdout, stderr] = await Promise.all([installer.wait(), read(installer.stdout), read(installer.stderr)]);
+    output = stdout;errors = stderr;
+    if (result.exitCode !== 0) throw new Error("无法安装排版增强：" + (output.trim() || errors.trim()));
+    const status = JSON.parse(output.trim());
+    if (status.hook_changed && await healthy(getServerURL())) {
+      Services.prompt.alert(null, "PDF2zh 排版增强", "增强功能已安装。现有服务需要在当前任务结束后重新启动一次，后续翻译才会使用增强功能；插件不会中断当前任务。");
+    }
+  })().finally(() => { qualityInstalling = null; });
+  return qualityInstalling;
+}
+async function readPackagedText(relative) {
+  const uri = Services.io.newURI(packageURI + relative);
+  const Cc = Components.classes, Ci = Components.interfaces;
+  if (uri.schemeIs("file")) return IOUtils.readUTF8(uri.QueryInterface(Ci.nsIFileURL).file.path);
+  const jar = uri.QueryInterface(Ci.nsIJARURI);
+  const reader = Cc["@mozilla.org/libjar/zip-reader;1"].createInstance(Ci.nsIZipReader);
+  reader.open(jar.JARFile.QueryInterface(Ci.nsIFileURL).file);
+  const stream = Cc["@mozilla.org/scriptableinputstream;1"].createInstance(Ci.nsIScriptableInputStream);
+  try {
+    stream.init(reader.getInputStream(jar.JAREntry));
+    const bytes = stream.readBytes(stream.available());
+    return new TextDecoder().decode(Uint8Array.from(bytes, char => char.charCodeAt(0)));
+  } finally { stream.close();reader.close(); }
+}
+async function setQualityEnabled(enabled) {
+  const previous = pref("qualityEnabled", true);
+  Zotero.Prefs.set(PREFIX + "qualityEnabled", Boolean(enabled), true);
+  try { await updateQualityRuntime(); }
+  catch (error) { Zotero.Prefs.set(PREFIX + "qualityEnabled", previous, true); throw error; }
 }
 async function updateServerHistoryPage() {
   const script = String(pref("serverScript", "")).trim();
