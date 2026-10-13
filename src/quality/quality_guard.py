@@ -13,6 +13,8 @@ import re
 import threading
 import unicodedata
 
+from figure_guard import install_graphics, should_preserve_character
+
 VERSION = "1.0.0"
 META = re.compile(r"let['’]s\s+(?:think|check|translate|read)|\b(?:I|we)\s+(?:need to|should|must)\s+(?:translate|output|preserve)|\b(?:source|target|tag)\s*\d*\s*:|\b(?:output format|translation strategy|glossary matching|the user asks|final answer)\b|作为.{0,8}(?:AI|语言模型)|以下是.{0,8}(?:翻译|译文)|我需要.{0,6}翻译", re.I)
 PLACEHOLDER = re.compile(r"\{\s*v\s*\d+\s*\}|<\s*/?\s*style\b[^>]*>", re.I)
@@ -190,10 +192,12 @@ class QualityGuard:
         from babeldoc.format.pdf.document_il.midend.paragraph_finder import ParagraphFinder
         from babeldoc.format.pdf.document_il.midend.layout_parser import LayoutParser
         from babeldoc.format.pdf.document_il.midend.il_translator_llm_only import ILTranslatorLLMOnly
+        from babeldoc.format.pdf.document_il.utils.layout_helper import build_layout_index
         guard = self
         def replace(owner, name, method):
             self.originals.append((owner, name, getattr(owner, name)))
             setattr(owner, name, method)
+        install_graphics(replace)
         original_translate = BaseTranslator.translate
         original_llm = BaseTranslator.llm_translate
         def supported(translator):
@@ -213,19 +217,20 @@ class QualityGuard:
             page_index = page.page_number
             regions = list(guard.plan["pages"][page_index]["protected"])
             height = guard.plan["pages"][page_index]["height"]
-            for region in page.page_layout:
-                if region.class_name.lower() in ("figure", "table"):
-                    box = region.box
-                    regions.append({"kind": region.class_name.lower(), "box": [box.x, height-box.y2, box.x2, height-box.y]})
+            index, layouts = build_layout_index(page)
             def protected(char):
+                if should_preserve_character(char, index, layouts, finder.translation_config):
+                    return True
                 box = char.visual_bbox.box if char.visual_bbox else char.box
                 x, y = (box.x + box.x2)/2, height - (box.y + box.y2)/2
                 return any(r["box"][0] <= x <= r["box"][2] and r["box"][1] <= y <= r["box"][3] for r in regions)
             retained = [c for c in page.pdf_character if protected(c)]
             retained_ids = {id(c) for c in retained}
             page.pdf_character = [c for c in page.pdf_character if id(c) not in retained_ids]
-            original_finder(finder, page)
-            page.pdf_character.extend(retained)
+            try:
+                original_finder(finder, page)
+            finally:
+                page.pdf_character.extend(retained)
             with guard.lock:
                 guard.counts["protected_structure_characters"] += len(retained)
                 for paragraph in page.pdf_paragraph:

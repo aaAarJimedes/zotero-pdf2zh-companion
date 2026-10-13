@@ -5,7 +5,7 @@ $xpi = Join-Path $root "dist/pdf2zh-companion-$($manifest.version).xpi"
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 $zip = [IO.Compression.ZipFile]::OpenRead($xpi)
 try {
-    foreach ($name in 'manifest.json','bootstrap.js','prefs.js','history-patch.js','content/icons/server.svg','quality/install_quality.py','quality/companion_quality.py','quality/quality_engine.py','quality/quality_guard.py') {
+    foreach ($name in 'manifest.json','bootstrap.js','prefs.js','history-patch.js','content/icons/server.svg','quality/install_quality.py','quality/companion_quality.py','quality/companion_pipe_progress.py','quality/quality_engine.py','quality/quality_guard.py','quality/figure_guard.py') {
         $entry = $zip.GetEntry($name)
         if (!$entry) { throw "Missing packaged file: $name" }
         $reader = [IO.StreamReader]::new($entry.Open())

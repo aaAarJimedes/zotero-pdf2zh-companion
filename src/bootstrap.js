@@ -1,11 +1,12 @@
 /* global Zotero, Services, IOUtils, PathUtils, ChromeUtils */
 "use strict";
-const VERSION = "2.1.1";
+const VERSION = "2.2.0";
 const PREFIX = "extensions.zotero.pdf2zh.companion.";
 const { Subprocess } = ChromeUtils.importESModule("resource://gre/modules/Subprocess.sys.mjs");
 const buttons = new Map();
 let iconURI, packageURI, process = null, opening = null, viewer = null, viewerURL = null;
 let qualityInstalling = null;
+let settingsChanging = Promise.resolve();
 let stopped = false;
 const historyPatch = {};
 function install() {}
@@ -16,7 +17,7 @@ async function startup({ rootURI, resourceURI }) {
   iconURI = packageURI + "content/icons/server.svg";
   Services.scriptloader.loadSubScript(packageURI + "history-patch.js", historyPatch);
   await Zotero.uiReadyPromise;
-  Zotero.PDF2ZHCompanion = { version: VERSION, openServer, setQualityEnabled, get qualityEnabled() { return pref("qualityEnabled", true); } };
+  Zotero.PDF2ZHCompanion = { version: VERSION, openServer, configureServer, setQualityEnabled, get qualityEnabled() { return pref("qualityEnabled", true); } };
   for (const win of Zotero.getMainWindows()) attach(win);
   try { await updateQualityRuntime(); } catch (error) {
     Zotero.logError(error);
@@ -51,7 +52,7 @@ function attach(win) {
   button.id = "pdf2zh-companion-server-button";
   button.classList.add("zotero-tb-button");
   button.setAttribute("label", "PDF2zh Server");
-  button.setAttribute("tooltiptext", "打开 PDF2zh Server；右键切换默认开启的译文与排版增强");
+  button.setAttribute("tooltiptext", "打开 PDF2zh Server；右键配置本机服务或切换译文与排版增强");
   button.style.listStyleImage = `url(${iconURI})`;
   button.disabled = Boolean(opening);
   const listener = () => openServer().catch(error => {
@@ -72,7 +73,16 @@ function attach(win) {
         Zotero.logError(error); Services.prompt.alert(win, "PDF2zh 排版增强", error.message);
       });
     });
-    popup.appendChild(item);doc.documentElement.appendChild(popup);popups.add(popup);
+    popup.appendChild(item);
+    const setup = doc.createXULElement("menuitem");
+    setup.setAttribute("label", "配置本机服务…");
+    setup.addEventListener("command", event => {
+      event.stopPropagation();
+      return configureServer().catch(error => {
+        Zotero.logError(error);Services.prompt.alert(win, "PDF2zh 本机服务", error.message);
+      });
+    });
+    popup.appendChild(setup);doc.documentElement.appendChild(popup);popups.add(popup);
     popup.addEventListener("popuphidden", () => { popups.delete(popup);popup.remove(); }, {once:true});
     popup.openPopupAtScreen(event.screenX, event.screenY, true);
   };
@@ -145,12 +155,59 @@ async function probeServerRuntime(python, inherited) {
   return runtime;
 }
 async function healthy(url) {
+  let status;
   try {
     const response = await Zotero.HTTP.request("GET", url + "/health", {
       responseType: "json", timeout: 2000, successCodes: [200],
     });
-    return response.response?.status === "ok" && Boolean(response.response.version);
+    status = response.response;
   } catch (_) { return false; }
+  if (status?.status !== "ok" || !status.version) return false;
+  const script = String(pref("serverScript", "")).trim();
+  if (script) {
+    const normalized = value => {
+      const path = String(value).replace(/\\/g, "/").replace(/\/+$/, "");
+      return /^[A-Za-z]:\//.test(path) ? path.toLowerCase() : path;
+    };
+    const expected = normalized(PathUtils.join(PathUtils.parent(script), "translated"));
+    if (normalized(status.outputDir || "") !== expected) {
+      throw new Error("当前端口运行的 Server 与所选目录不一致。请先结束旧服务，或在主插件中选择另一空闲本机端口。");
+    }
+  }
+  return true;
+}
+function changeSettings(action) {
+  const next = settingsChanging.then(async () => { await qualityInstalling;return action(); });
+  settingsChanging = next.catch(() => {});
+  return next;
+}
+function configureServer() { return changeSettings(configureServerNow); }
+async function configureServerNow() {
+  const { FilePicker } = ChromeUtils.importESModule("chrome://zotero/content/modules/filePicker.mjs");
+  const win = Zotero.getMainWindow();
+  async function choose(title, filter, previous) {
+    const picker = new FilePicker();
+    picker.init(win, title, picker.modeOpen);
+    picker.appendFilter(title, filter);picker.appendFilters(picker.filterAll);
+    if (previous) picker.displayDirectory = PathUtils.parent(previous);
+    return await picker.show() === picker.returnOK ? picker.file : null;
+  }
+  const script = await choose("选择官方 PDF2zh Server 的 server.py", "server.py", pref("serverScript", ""));
+  if (!script) return false;
+  if (!/[\\/]server\.py$/i.test(script)) throw new Error("请选择官方 Server 目录中的 server.py。");
+  const python = await choose("选择已安装 PDF2zh 的 Python（Windows 为 python.exe）", "python*", pref("serverPython", ""));
+  if (!python) return false;
+  await probeServerRuntime(python, Subprocess.getEnvironment());
+  const previous = {python:pref("serverPython", ""), script:pref("serverScript", "")};
+  Zotero.Prefs.set(PREFIX + "serverPython", python, true);
+  Zotero.Prefs.set(PREFIX + "serverScript", script, true);
+  try { await updateQualityRuntime();await updateServerHistoryPage(); }
+  catch (error) {
+    Zotero.Prefs.set(PREFIX + "serverPython", previous.python, true);
+    Zotero.Prefs.set(PREFIX + "serverScript", previous.script, true);
+    throw error;
+  }
+  return true;
 }
 async function drain(stream) {
   if (!stream) return;
@@ -168,7 +225,7 @@ async function ensureServer(url) {
   if (!process || process.exitCode !== null) {
     const python = String(pref("serverPython", "")).trim();
     const script = String(pref("serverScript", "")).trim();
-    if (!python || !script) throw new Error("请在配置编辑器中填写 extensions.zotero.pdf2zh.companion.serverPython 和 serverScript。");
+    if (!python || !script) throw new Error("请右键 PDF2zh Server 按钮，选择“配置本机服务…”。");
     if (!(await IOUtils.exists(python))) throw new Error("找不到 Python：" + python);
     if (!(await IOUtils.exists(script))) throw new Error("找不到 Server 脚本：" + script);
     const parsed = new URL(url);
@@ -205,7 +262,7 @@ async function updateQualityRuntime() {
     const server = script.replace(/[\\/][^\\/]+$/, "");
     const stage = PathUtils.join(server, "companion-quality-package");
     await IOUtils.makeDirectory(stage, {ignoreExisting:true});
-    for (const name of ["install_quality.py", "companion_quality.py", "quality_engine.py", "quality_guard.py"]) {
+    for (const name of ["install_quality.py", "companion_quality.py", "companion_pipe_progress.py", "quality_engine.py", "quality_guard.py", "figure_guard.py"]) {
       const text = await readPackagedText("quality/" + name);
       const dest = PathUtils.join(stage, name);
       await IOUtils.writeUTF8(dest, text, {tmpPath:dest + ".tmp"});
@@ -242,10 +299,12 @@ async function readPackagedText(relative) {
   } finally { stream.close();reader.close(); }
 }
 async function setQualityEnabled(enabled) {
-  const previous = pref("qualityEnabled", true);
-  Zotero.Prefs.set(PREFIX + "qualityEnabled", Boolean(enabled), true);
-  try { await updateQualityRuntime(); }
-  catch (error) { Zotero.Prefs.set(PREFIX + "qualityEnabled", previous, true); throw error; }
+  return changeSettings(async () => {
+    const previous = pref("qualityEnabled", true);
+    Zotero.Prefs.set(PREFIX + "qualityEnabled", Boolean(enabled), true);
+    try { await updateQualityRuntime(); }
+    catch (error) { Zotero.Prefs.set(PREFIX + "qualityEnabled", previous, true); throw error; }
+  });
 }
 async function updateServerHistoryPage() {
   const script = String(pref("serverScript", "")).trim();
@@ -265,6 +324,7 @@ function openServer() {
   if (stopped) return Promise.reject(new Error("插件已停用。"));
   for (const { button } of buttons.values()) button.disabled = true;
   opening = (async () => {
+    if ((!pref("serverPython", "") || !pref("serverScript", "")) && !(await configureServer())) return;
     const url = getServerURL();
     await ensureServer(url);
     try {

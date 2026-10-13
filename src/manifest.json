@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "PDF2zh 本地伴侣",
-  "version": "2.1.1",
+  "version": "2.2.0",
   "description": "启动本地 PDF2zh Server，默认开启译文校验、目录重建与排版检查；翻译与回挂由主插件接管。",
   "author": "aaAarJimedes",
   "homepage_url": "https://github.com/aaAarJimedes/zotero-pdf2zh-companion",

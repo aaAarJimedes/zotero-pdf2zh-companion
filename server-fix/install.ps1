@@ -19,9 +19,9 @@ if (-not $text.Contains('from utils.companion_pipe_progress import execute_pipe'
     if (-not $text.Contains('def _windows_visible_console_size():')) {
         throw 'Unsupported execute.py: console detector missing. No changes made.'
     }
-    Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'companion_pipe_progress.py') -Destination $helper
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot '../src/quality/companion_pipe_progress.py') -Destination $helper
     [IO.File]::WriteAllText($target, $text.Replace($old, $new), [Text.UTF8Encoding]::new($false))
 } else {
-    Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'companion_pipe_progress.py') -Destination $helper
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot '../src/quality/companion_pipe_progress.py') -Destination $helper
 }
 Write-Output 'Installed pipe progress fix. Restart the idle Server to activate it.'

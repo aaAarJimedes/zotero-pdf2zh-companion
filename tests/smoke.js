@@ -4,10 +4,12 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const source = fs.readFileSync(path.join(__dirname, '../src/bootstrap.js'), 'utf8');
-function harness({ online = false, missing = false, empty = false, dies = false, index = false, unsupported = false, url = 'http://localhost:8890' } = {}) {
+function harness({ online = false, missing = false, empty = false, cancel = false, dies = false, index = false, unsupported = false, outputDir = 'C:\\Server\\translated', url = 'http://localhost:8890' } = {}) {
   let launches = [], opened = [], focused = 0, checks = 0, removed = 0;
   let html = unsupported ? 'different page' : `      const STORAGE_KEY = "pdf2zh_history_v2";\n      function clearLocalHistory() {}\n      function mergeHistory(serverHistory) {}\n      function toggleHistoryItem(el) {}`, writes = 0;
-  const prefs = {serverPython:'C:\\Conda\\envs\\pdf\\python.exe', serverScript:'C:\\Server\\server.py'};
+  const prefs = empty ? {} : {serverPython:'C:\\Conda\\envs\\pdf\\python.exe', serverScript:'C:\\Server\\server.py'};
+  const picked=['C:\\Server\\server.py','C:\\Conda\\envs\\pdf\\python.exe'];
+  class FilePicker { init(){} appendFilter(){} appendFilters(){} async show(){this.file=picked.shift();return cancel?1:0;} get returnOK(){return 0;} }
   const nodes = [];
   const toolbar = {appendChild(node) { nodes.push(node); }};
   function element() {
@@ -28,7 +30,7 @@ function harness({ online = false, missing = false, empty = false, dies = false,
   const popupRoot=element();
   const win = {document:{documentElement:popupRoot,getElementById:()=>toolbar,createXULElement:element}};
   const context = {
-    URL, PathUtils:path.win32, Date,
+    URL, PathUtils:{...path.win32,parent:path.win32.dirname}, Date,
     Services:{prompt:{alert(){}},scriptloader:{loadSubScript(uri,scope){
       assert.ok(uri.endsWith('/history-patch.js'));
       vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../src/history-patch.js'),'utf8'),scope);
@@ -40,7 +42,7 @@ function harness({ online = false, missing = false, empty = false, dies = false,
         if (target.includes('companion-quality-package')) return;
         assert.ok(target.endsWith('index.html'));assert.equal(options.tmpPath,target+'.companion-history.tmp');html=text;writes++;
       }},
-    ChromeUtils:{importESModule:()=>({Subprocess:{getEnvironment:()=>({Path:'C:\\Windows',SystemRoot:'C:\\Windows'}),call:async(options)=>{
+    ChromeUtils:{importESModule:()=>({FilePicker,Subprocess:{getEnvironment:()=>({Path:'C:\\Windows',SystemRoot:'C:\\Windows'}),call:async(options)=>{
       if (String(options.arguments[0]).endsWith('install_quality.py')) {
         let output=JSON.stringify({enabled:options.arguments.at(-1)==='true',hook_changed:false});
         return {wait:async()=>({exitCode:0}),stdout:{readString:async()=>{const chunk=output;output='';return chunk;}},stderr:{readString:async()=>''}};
@@ -52,10 +54,10 @@ function harness({ online = false, missing = false, empty = false, dies = false,
       launches.push(options); online = !dies;
       return {exitCode:dies?1:null,wait:()=>new Promise(()=>{}),stdout:{readString:async()=>''},stderr:{readString:async()=>''}};
     }}})},
-    Zotero:{initializationPromise:Promise.resolve(),uiReadyPromise:Promise.resolve(),getMainWindows:()=>[win],
+    Zotero:{initializationPromise:Promise.resolve(),uiReadyPromise:Promise.resolve(),getMainWindows:()=>[win],getMainWindow:()=>win,
       File:{getContentsAsync:async uri=>fs.readFileSync(path.join(__dirname,'../src/quality',uri.split('/').at(-1)),'utf8')},
-      Prefs:{get:key=>key.endsWith('new_serverip')?url:empty?'':prefs[key.split('.').at(-1)],set:(key,value)=>{prefs[key.split('.').at(-1)]=value;}},
-      HTTP:{request:async(method,target)=>{checks++; assert.equal(method,'GET');assert.ok(target.endsWith('/health'));if(!online)throw Error('offline');return {response:{status:'ok',version:'4.1.7'}};}},
+      Prefs:{get:key=>key.endsWith('new_serverip')?url:prefs[key.split('.').at(-1)],set:(key,value)=>{prefs[key.split('.').at(-1)]=value;}},
+      HTTP:{request:async(method,target)=>{checks++; assert.equal(method,'GET');assert.ok(target.endsWith('/health'));if(!online)throw Error('offline');return {response:{status:'ok',version:'4.1.7',outputDir}};}},
       Promise:{delay:async()=>{}},debug(){},logError(){},
       openInViewer:uri=>{opened.push(uri);return {closed:false,focus(){focused++;}}},
     },
@@ -87,6 +89,32 @@ function harness({ online = false, missing = false, empty = false, dies = false,
   h.context.openServer=originalOpenServer;
   await h.context.setQualityEnabled(false);
   assert.equal(h.context.Zotero.PDF2ZHCompanion.qualityEnabled,false,'an explicit false must not become the true default');
+  await Promise.all([h.context.setQualityEnabled(true), h.context.setQualityEnabled(false)]);
+  assert.equal(h.context.Zotero.PDF2ZHCompanion.qualityEnabled,false,'queued preference updates must preserve the last selected value');
+  const racing=harness();
+  await racing.context.startup({rootURI:'jar:file:///test.xpi!/'});
+  racing.context.installedModes=[];
+  const installStarted=new Promise(resolve=>{racing.context.installStarted=resolve;});
+  vm.runInNewContext(`
+    const originalCall=Subprocess.call;
+    Subprocess.call=async options=>{
+      if(String(options.arguments[0]).endsWith('install_quality.py')) {
+        installedModes.push(options.arguments.at(-1));
+        if(installedModes.length===1) await new Promise(resolve=>{
+          globalThis.releaseInstall=resolve;installStarted();
+        });
+      }
+      return originalCall(options);
+    };
+  `,racing.context);
+  const disabling=racing.context.setQualityEnabled(false);
+  await installStarted;
+  const enabling=racing.context.setQualityEnabled(true);
+  racing.context.releaseInstall();
+  await Promise.all([disabling,enabling]);
+  assert.deepEqual(Array.from(racing.context.installedModes),['false','true'],
+    'a change during installation must also reach runtime settings, not only the saved preference');
+  assert.equal(racing.context.Zotero.PDF2ZHCompanion.qualityEnabled,true);
   const a=h.context.openServer(), b=h.context.openServer();
   assert.equal(a,b,'double click must share one launch');
   assert.equal(h.nodes[0].disabled,true);
@@ -100,17 +128,20 @@ function harness({ online = false, missing = false, empty = false, dies = false,
   await h.nodes[0].dispatch('contextmenu');
   h.context.shutdown();assert.equal(h.removed,3,'shutdown removes the button and any remaining context popup');assert.equal(h.context.Zotero.PDF2ZHCompanion,undefined);
   await assert.rejects(h.context.openServer(),/停用/);
-  const live=harness({online:true,empty:true});await live.context.openServer();assert.equal(live.launches.length,0);
+  const live=harness({online:true});await live.context.openServer();assert.equal(live.launches.length,0);
+  const fresh=harness({empty:true});await fresh.context.startup({rootURI:'jar:file:///test.xpi!/'});await fresh.context.openServer();
+  assert.equal(fresh.launches.length,1,'new installation selects both paths and starts without config editor edits');
+  const cancelled=harness({empty:true,cancel:true});await cancelled.context.openServer();assert.equal(cancelled.launches.length,0);assert.equal(cancelled.opened.length,0);
   const history=harness({online:true,index:true});await history.context.startup({rootURI:'jar:file:///test.xpi!/'});
   await history.context.openServer();assert.equal(history.launches.length,0);assert.equal(history.writes,1);assert.ok(history.html.includes('PDF2ZH_COMPANION_HISTORY_FIX 2.0.2'));
   await history.context.openServer();assert.equal(history.writes,1,'reopening must not rewrite the page');
   const changed=harness({online:true,index:true,unsupported:true});await changed.context.startup({rootURI:'jar:file:///test.xpi!/'});
   await changed.context.openServer();assert.equal(changed.writes,0);assert.equal(changed.opened.length,1,'unknown page must remain usable without being overwritten');
-  for (const [options,pattern] of [[{empty:true},/配置编辑器/],[{missing:true},/找不到 Python/],[{dies:true},/启动后退出/],[{url:'https://example.com'},/本机地址/]]) {
+  for (const [options,pattern] of [[{missing:true},/找不到 Python/],[{dies:true},/启动后退出/],[{online:true,outputDir:'C:\\AnotherServer\\translated'},/目录不一致/],[{url:'https://example.com'},/本机地址/]]) {
     const failure=harness(options);await assert.rejects(failure.context.openServer(),pattern);assert.equal(failure.opened.length,0);
   }
   const manifest=JSON.parse(fs.readFileSync(path.join(__dirname,'../src/manifest.json')));
-  assert.equal(manifest.version,'2.1.1');assert.ok(manifest.applications.zotero.update_url);
+  assert.equal(manifest.version,'2.2.0');assert.ok(manifest.applications.zotero.update_url);
   for (const forbidden of ['onDialogEvents','translateSelected','openComparison','getSelectedItems','Zotero.Reader','Server.Endpoints','setInterval']) assert.ok(!source.includes(forbidden),forbidden);
   console.log('single-button startup, reuse, built-in viewer, errors, lifecycle and no-translation tests passed');
 })().catch(error=>{console.error(error);process.exitCode=1;});

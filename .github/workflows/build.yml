@@ -29,6 +29,7 @@ jobs:
       - name: Quality checks without model or document data
         run: |
           python .\tests\quality_guard.py --offline
+          python .\tests\figure_guard.py --offline
           python .\tests\quality_hook.py
       - name: Build XPI
         shell: pwsh

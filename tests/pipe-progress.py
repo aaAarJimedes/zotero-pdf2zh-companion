@@ -13,7 +13,7 @@ from utils import execute
 from utils.task_manager import task_manager
 
 spec = importlib.util.spec_from_file_location("pipe_fix", Path(__file__).parents[1] /
-                                            "server-fix/companion_pipe_progress.py")
+                                            "src/quality/companion_pipe_progress.py")
 fix = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(fix)
 updates = []

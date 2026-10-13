@@ -7,7 +7,7 @@ import tempfile
 
 root = Path(__file__).resolve().parents[1] / "src" / "quality"
 sys.path.insert(0, str(root))
-from install_quality import patch_execute, install, ANCHOR, IMPORT, HOOK
+from install_quality import patch_execute, install, ANCHOR, IMPORT, HOOK, WINDOWS, PIPE
 from quality_engine import validate_output_scope, UnsupportedQualitySettings
 from types import SimpleNamespace
 
@@ -21,8 +21,11 @@ for overrides in ({"pages":"2"}, {"pages":"1-"}, {"only_include_translated_page"
     except UnsupportedQualitySettings as error:assert "关闭" in str(error)
     else:raise AssertionError("Unsupported page mapping must fail before translation")
 
-fixture = "import os\ndef execute():\n" + ANCHOR + "    return final_cmd\n"
+fixture = ("import os\ndef _windows_visible_console_size():\n    return None\ndef execute():\n"
+           + ANCHOR + "    if True:\n" + WINDOWS + "\n    return final_cmd\n")
 assert patch_execute(patch_execute(fixture)) == patch_execute(fixture)
+assert PIPE in patch_execute(fixture)
+assert patch_execute(IMPORT + fixture.replace(ANCHOR, ANCHOR + HOOK).replace(WINDOWS, PIPE)) == patch_execute(fixture)
 for unknown in ("different version", fixture.replace(ANCHOR, ANCHOR*2), IMPORT+fixture):
     try:patch_execute(unknown)
     except ValueError:pass
