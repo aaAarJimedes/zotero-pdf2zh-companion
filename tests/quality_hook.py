@@ -38,7 +38,7 @@ with tempfile.TemporaryDirectory(prefix="companion-quality-") as directory:
     command=[str(Path(sys.executable).parent/"pdf2zh_next.exe"), "sample.pdf", "--openai"]
     wrapped=hook.prepare_quality_runtime_command(command, {})
     assert wrapped[0]==sys.executable and wrapped[2:]==command[1:]
-    assert wrapped[1]==str(server/"companion-quality"/"quality_engine.py")
+    assert Path(wrapped[1]).resolve()==(server/"companion-quality"/"quality_engine.py").resolve()
     legacy=["pdf2zh", "sample.pdf"]
     assert hook.prepare_quality_runtime_command(legacy,{}) is legacy
     assert hook.prepare_quality_runtime_command(["pdf2zh.exe","sample.pdf"],{})==["pdf2zh.exe","sample.pdf"]

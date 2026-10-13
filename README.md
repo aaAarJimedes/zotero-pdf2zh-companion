@@ -1,6 +1,6 @@
 # PDF2zh 本地伴侣
 
-当前版本 **2.1.0**。在 Zotero 工具栏提供一个 Server 按钮，启动或复用本机服务，再用 Zotero 内置查看器打开服务页面。翻译与附件导入仍由 PDF2zh 主插件处理。
+当前版本 **2.1.1**。在 Zotero 工具栏提供一个 Server 按钮，启动或复用本机服务，再用 Zotero 内置查看器打开服务页面。翻译与附件导入仍由 PDF2zh 主插件处理。
 
 ## 默认译文与排版增强
 
@@ -31,7 +31,7 @@ node .\server-fix\install-history.cjs 'D:\softwares\zotero-pdf2zh\server'
 
 ## 安装与构建
 
-从当前发布楼下载 `pdf2zh-companion-2.1.0.xpi`，通过 Zotero 插件管理器安装。首次配置继续使用主插件的回环服务地址，以及 `extensions.zotero.pdf2zh.companion.serverPython` / `serverScript`。不要在源码填写本机路径、密钥或用户偏好。
+从当前发布楼下载 `pdf2zh-companion-2.1.1.xpi`，通过 Zotero 插件管理器安装。首次配置继续使用主插件的回环服务地址，以及 `extensions.zotero.pdf2zh.companion.serverPython` / `serverScript`。不要在源码填写本机路径、密钥或用户偏好。
 
 ```powershell
 node .\tests\smoke.js

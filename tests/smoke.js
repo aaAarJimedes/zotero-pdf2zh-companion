@@ -110,7 +110,7 @@ function harness({ online = false, missing = false, empty = false, dies = false,
     const failure=harness(options);await assert.rejects(failure.context.openServer(),pattern);assert.equal(failure.opened.length,0);
   }
   const manifest=JSON.parse(fs.readFileSync(path.join(__dirname,'../src/manifest.json')));
-  assert.equal(manifest.version,'2.1.0');assert.ok(manifest.applications.zotero.update_url);
+  assert.equal(manifest.version,'2.1.1');assert.ok(manifest.applications.zotero.update_url);
   for (const forbidden of ['onDialogEvents','translateSelected','openComparison','getSelectedItems','Zotero.Reader','Server.Endpoints','setInterval']) assert.ok(!source.includes(forbidden),forbidden);
   console.log('single-button startup, reuse, built-in viewer, errors, lifecycle and no-translation tests passed');
 })().catch(error=>{console.error(error);process.exitCode=1;});

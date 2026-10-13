@@ -1,6 +1,6 @@
 /* global Zotero, Services, IOUtils, PathUtils, ChromeUtils */
 "use strict";
-const VERSION = "2.1.0";
+const VERSION = "2.1.1";
 const PREFIX = "extensions.zotero.pdf2zh.companion.";
 const { Subprocess } = ChromeUtils.importESModule("resource://gre/modules/Subprocess.sys.mjs");
 const buttons = new Map();

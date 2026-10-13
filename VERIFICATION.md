@@ -1,4 +1,4 @@
-# 2.1.0 verification (2026-10-13)
+# 2.1.1 verification (2026-10-13)
 
 - Passed: reply/cache validation for paragraphs, glossary and numbered batches; native method hooks and reversible restoration; known Server command interception, correct interpreter selection, idempotent installation and per-task enable/disable behavior.
 - Passed: five output arrangements (mono, LR and alternating pages, including translation-first), source geometry, contents page numbers/links, references and footer preservation on synthetic PDFs.
