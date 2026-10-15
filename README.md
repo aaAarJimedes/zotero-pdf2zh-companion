@@ -39,7 +39,7 @@ node .\server-fix\install-history.cjs 'C:\PDF2zh\server'
 
 本轮验证使用 Windows、PSF 官方 **Python 3.13.16 64 位**、Zotero **10.0.6**、官方 Server/主插件 4.1.7 和独立 venv。其他系统和 Python 版本尚未完成同样的安装验收。`requirements-runtime.txt` 是此次干净环境实际解析并验证过的完整版本清单，严格固定 `pdf2zh-next==2.9.0`、`BabelDOC==0.6.2` 等依赖，不包含本机路径、私有下载地址或凭据。
 
-1. 安装 [PSF 官方 Python](https://www.python.org/downloads/windows/) 3.13 64 位和 Zotero。从[官方 4.1.7 发布页](https://github.com/guaguastandup/zotero-pdf2zh/releases/tag/v4.1.7)取得 `server.zip`、`zotero-pdf-2-zh.xpi`；从有权限访问的伴侣发布页取得本版 XPI 与 `requirements-runtime.txt`。
+1. 安装 [PSF 官方 Python](https://www.python.org/downloads/windows/) 3.13 64 位和 Zotero。从[官方 4.1.7 发布页](https://github.com/guaguastandup/zotero-pdf2zh/releases/tag/v4.1.7)取得 `server.zip`、`zotero-pdf-2-zh.xpi`；从伴侣发布页取得本版 XPI 与 `requirements-runtime.txt`。
 2. 新建一个自己的安装目录，将 `server.zip` 和 `requirements-runtime.txt` 放进去。以下以 `C:\PDF2zh` 为例，在 PowerShell 中创建独立环境，不需要执行激活脚本：
 
 ```powershell
@@ -57,7 +57,7 @@ $runtimePython = Join-Path (Get-Location) '.venv\Scripts\python.exe'
 
 伴侣启动时将选定 Python 同时作为 Server 与翻译环境，不启用 Server 的额外自动建环境功能。不要只选择装有 Flask 的基础 Python；应选择安装过本清单的 venv。已有 uv/Conda 环境可继续使用，但要满足同样版本要求。不同目录的 Server 已占用相同端口时，伴侣会提示，避免打开错误服务；请等待原任务结束后再停旧服务或选择另一空闲本机端口。
 
-仓库保持私有，GitHub 下载和更新清单需要有权限的认证，不能保证 Zotero 的匿名自动更新。通过有权限的账号取得 XPI 后手动安装，不依赖匿名更新。包内不保存用户的路径、模型密钥或 Zotero 数据库。
+仓库公开，发行包和更新清单无需 GitHub 登录即可下载；Zotero 使用包内的公开更新地址检查更新。仅仓库所有者具有直接写入和发布权限，不授予其他协作者编辑权限。其他人可以查看、下载或 fork 自己的副本。包内不保存用户的路径、模型密钥或 Zotero 数据库。
 
 ## 构建与验证
 

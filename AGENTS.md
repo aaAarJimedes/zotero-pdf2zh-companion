@@ -1,6 +1,6 @@
 # PDF2zh 子插件维护
 
-在 D:/Agent Workspaces 工作区内工作时，先读取工作区与 remote-access 父规则。此组件唯一主源码为 src/，对应既有私有仓库 aaAarJimedes/zotero-pdf2zh-companion；不复制用户偏好、凭据、运行数据库或整套 Server。
+在 D:/Agent Workspaces 工作区内工作时，先读取工作区与 remote-access 父规则。此组件唯一主源码为 src/，对应既有公开仓库 aaAarJimedes/zotero-pdf2zh-companion；不复制用户偏好、凭据、运行数据库或整套 Server。
 
 - 保持一个工具栏按钮、回环服务地址及 Zotero 内置查看器。不得因更新重启/结束在途翻译或自行提交文献。
 - 启动环境从 Python 的 sys.prefix/base_prefix 构造；Windows Path/PATH 大小写合并、路径去重，environmentAppend=false。
@@ -12,4 +12,4 @@
 - 变更后运行 tests/smoke.js、tests/environment.js、tests/history.js、tests/windows-native.py，按需运行本机 tests/local-runtime.cjs。build.ps1 构建后运行 tests/release.ps1。真实 UI 验证与代码测试分别记录，不把进度完成等同于功能验收。
 - 2.2.0 新安装验收已覆盖 Windows / PSF Python 3.13.16 / Zotero 10.0.6 的独立配置、文献库、Server 与 venv：实际文件选择、启动、合成两页右键翻译及单语/LR 自动回挂，摘要与输出相符，225 份引擎源码未改写；增强关闭状态跨重启保留，恢复开启已读回，回挂 LR 的原生阅读器显示与首页目录位置已查看。界面历史验证只确认取消保留记录，实际删除由代码测试覆盖；其他系统、复杂 OCR 和真实论文语义不据此宣称通过，细节见 VERIFICATION.md。保留既有原文/译文与暂停批量边界。
 - 本机运行、回退与发行包归 Delivery/remote-access/PDF2zh。更新静态历史页面无需重启 Server；更新插件不能打断在途队列，必要时保留待重新加载状态。
-- GitHub 使用本机 git/gh。沿用 main 和单页发布楼，历史正文/标签/真实附件保全，上传与删除串行、下载摘要核验后才移除旧页。私有可见性不改变；匿名自动更新限制必须如实说明。
+- GitHub 使用本机 git/gh。沿用 main 和单页发布楼，历史正文/标签/真实附件保全，上传与删除串行、下载摘要核验后才移除旧页。用户已于 2026-10-15 明确要求公开仓库，仅所有者保留写入与发布权限；不添加其他写入协作者。公开发行下载和更新清单须可匿名访问，实际界面更新是否验收另行如实说明。
